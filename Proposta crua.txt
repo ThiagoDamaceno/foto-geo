@@ -1,0 +1,110 @@
+*Foto 1
+Eu tiro essa foto com o drone, no caso o drone só fornece a imagem e ok
+
+Mas nos metadados ele fornece a hora em que foi tirado a foto, latitude e longitude e uma série de informações
+
+No caso o que eu queria era pegar esses metadados e inserir na foto, que no meu caso eu tenho que mandar as fotos com coordenadas e o horário
+
+*Foto 2
+Daí ficaria basicamente assim, mas quero que só adicione as informações
+o chatgpt deu uma editada na imagem também
+Vou mandar a conversa com o chat para ter um norte
+
+Se o objetivo é gerar fotos como as usadas em fiscalização
+
+A forma mais prática é:
+
+Verificar se a foto possui GPS.
+Usar um programa que insira na imagem:
+Latitude e longitude;
+Data e hora;
+Altitude;
+Nome do local (opcional).
+
+Isso gera um resultado semelhante às fotos de inspeções técnicas.
+
+Posso montar um programa para você
+
+Se você usa Windows, posso criar um pequeno programa em Python (.exe) que:
+
+Arraste uma pasta de fotos do Lito X1.
+Leia automaticamente as coordenadas.
+Escreva na foto:
+📍 Latitude e Longitude
+📅 Data
+🕒 Hora
+📏 Altitude
+🧭 Direção (se disponível)
+Salve uma cópia sem alterar a foto original.
+[09:35, 17/07/2026] +55 44 9910-3182: Funcionalidades
+✅ Ler todas as fotos de uma pasta.
+✅ Identificar automaticamente as coordenadas GPS do EXIF.
+✅ Ler data e horário originais da captura.
+✅ Ler altitude (quando disponível).
+✅ Inserir essas informações na própria foto.
+✅ Exibir um mini mapa (opcional).
+✅ Salvar em outra pasta, preservando os arquivos originais.
+✅ Processar centenas de fotos de uma vez.
+Exemplo de como ficaria
+──────────────────────────────────────────
+📍 Latitude: 23°18'42.11"S
+📍 Longitude: 51°09'15.74"W
+📏 Altitude: 632,4 m
+
+📅 15/07/2026
+🕒 14:36:52
+
+🚁 Lito X1
+──────────────────────────────────────────
+
+Interface
+
+O programa teria uma interface simples:
+
+----------------------------------------
+   FOTO GEO - Quartz Engenharia
+----------------------------------------
+
+📂 Pasta das fotos: [Selecionar]
+
+📁 Pasta de saída: [Selecionar]
+
+☑️ Mostrar latitude
+☑️ Mostrar longitude
+☑️ Mostrar altitude
+☑️ Mostrar data
+☑️ Mostrar horário
+☑️ Mostrar modelo do drone
+☑️ Mostrar mini mapa
+
+             [PROCESSAR]
+
+Depois é só clicar em PROCESSAR.
+
+Posso gerar um executável (.exe)
+
+Posso preparar um programa para Windows que:
+
+Não precisa instalar Python.
+Funciona com um duplo clique.
+Aceita arrastar uma pasta de fotos.
+Processa todas as imagens automaticamente.
+
+Funcionalidades que pretendo incluir
+Processamento em lote
+Arrastar uma pasta com centenas de fotos.
+Processar todas automaticamente.
+Criar uma pasta "Fotos Processadas".
+Leitura automática
+
+O programa extrairá dos metadados (EXIF):
+
+Latitude.
+Longitude.
+Data.
+Hora.
+Altitude (quando disponível).
+Modelo do drone.
+Número da foto.
+
+Para ter esse resultado (*Foto 2)
