@@ -7,6 +7,13 @@ import { loadLogoAsset } from '../services/logo.service'
 import { collectImagePaths } from '../services/files.service'
 import { scanPhotos } from '../services/exif.service'
 import { getPreviewImage, renderPreview } from '../services/render.service'
+import {
+  deleteProfile,
+  duplicateProfile,
+  listProfiles,
+  loadProfile,
+  saveProfile
+} from '../services/profile.service'
 
 /** Registra os handlers IPC do Main (ARQUITETURA.md §5). */
 export function registerIpcHandlers(): void {
@@ -50,6 +57,15 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.pickLogo, (event) => pickLogo(windowOf(event)))
   ipcMain.handle(IPC.readLogo, (_event, filePath: string) => loadLogoAsset(filePath))
+
+  // Perfis (RF-07). O `id` é validado dentro do serviço — nada do Renderer virá caminho aqui.
+  ipcMain.handle(IPC.profilesList, () => listProfiles())
+  ipcMain.handle(IPC.profilesLoad, (_event, id: string) => loadProfile(id))
+  ipcMain.handle(IPC.profilesSave, (_event, id: string | null, template: unknown) =>
+    saveProfile(typeof id === 'string' ? id : null, template)
+  )
+  ipcMain.handle(IPC.profilesDuplicate, (_event, id: string) => duplicateProfile(id))
+  ipcMain.handle(IPC.profilesDelete, (_event, id: string) => deleteProfile(id))
 }
 
 /** Caminho vindo do Renderer passa pela mesma validação do import (ARQUITETURA.md §11). */

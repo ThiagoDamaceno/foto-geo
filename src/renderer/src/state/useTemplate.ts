@@ -9,6 +9,8 @@ export interface TemplateState {
   logoAsset: LogoAsset | null
   moveSection: (x: number, y: number) => void
   resizeSection: (widthPct: number) => void
+  /** Nome do perfil (é o que vai para o `.json` — RF-07). */
+  setName: (name: string) => void
   /** Altera uma ou mais propriedades da seção (fonte, cores, espaçamentos). */
   patchSection: (patch: Partial<SectionConfig>) => void
   /** Nova ordem vertical dos campos (o DnD chama isto — RF-04). */
@@ -19,6 +21,11 @@ export interface TemplateState {
   resizeLogo: (widthPct: number) => void
   setLogoOpacity: (opacity: number) => void
   setLogoAsset: (asset: LogoAsset | null) => void
+  /**
+   * Substitui tudo de uma vez — é assim que um perfil carregado entra no editor (RF-07).
+   * A logo vem junto porque o `Template` só guarda o caminho dela.
+   */
+  applyTemplate: (template: Template, logo: LogoAsset | null) => void
   reset: () => void
 }
 
@@ -32,6 +39,10 @@ const MIN_LOGO_WIDTH = 0.02
 export function useTemplate(): TemplateState {
   const [template, setTemplate] = useState<Template>(cloneDefaultTemplate)
   const [logoAsset, setLogoAssetState] = useState<LogoAsset | null>(null)
+
+  const setName = useCallback((name: string): void => {
+    setTemplate((current) => ({ ...current, name }))
+  }, [])
 
   const patchSection = useCallback((patch: Partial<SectionConfig>): void => {
     setTemplate((current) => ({ ...current, section: { ...current.section, ...patch } }))
@@ -109,6 +120,11 @@ export function useTemplate(): TemplateState {
     [patchLogo]
   )
 
+  const applyTemplate = useCallback((next: Template, logo: LogoAsset | null): void => {
+    setTemplate(next)
+    setLogoAssetState(logo)
+  }, [])
+
   const reset = useCallback((): void => {
     setTemplate(cloneDefaultTemplate())
     setLogoAssetState(null)
@@ -117,6 +133,7 @@ export function useTemplate(): TemplateState {
   return {
     template,
     logoAsset,
+    setName,
     moveSection,
     resizeSection,
     patchSection,
@@ -126,6 +143,7 @@ export function useTemplate(): TemplateState {
     resizeLogo,
     setLogoOpacity,
     setLogoAsset,
+    applyTemplate,
     reset
   }
 }

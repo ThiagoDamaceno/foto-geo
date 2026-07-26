@@ -3,7 +3,7 @@
 Editor visual de carimbo de telemetria para fotos de drone + aplicação em lote.
 Desktop Windows, **100% offline**.
 
-**Progresso: 5 de 9 passos** (`ARQUITETURA.md §14`) — editor pronto; faltam perfis, lote e
+**Progresso: 6 de 9 passos** (`ARQUITETURA.md §14`) — editor e perfis prontos; faltam o lote e o
 empacotamento. Estado por requisito nas marcas ✅/🔶/⬜ do `REQUISITOS.md §4` e `§5`.
 
 - **O que é / o que faz:** `REQUISITOS.md`
@@ -85,6 +85,7 @@ src/
 │       ├── exif.service.ts     # XMP drone-dji + EXIF → PhotoMetadata
 │       ├── render.service.ts   # SVG + Sharp → foto carimbada / preview
 │       ├── logo.service.ts     # logo PNG/SVG → PNG + proporção
+│       ├── profile.service.ts  # perfis .json (zod) → salvar/abrir/duplicar/excluir
 │       ├── icon-markup.ts      # ícones do carimbo (lucide-static)
 │       ├── files.service.ts    # valida/expande caminhos do Renderer
 │       └── dialog.service.ts   # seletores de arquivo/pasta
@@ -92,8 +93,8 @@ src/
 ├── renderer/                   # React + Tailwind (editor WYSIWYG)
 │   └── src/
 │       ├── components/         # ImportDropzone, MetadataList, EditorCanvas,
-│       │                       # InspectorPanel, FieldList, ThemeToggle
-│       ├── state/              # usePhotos (lote), useTemplate (carimbo)
+│       │                       # InspectorPanel, FieldList, ProfileBar, ThemeToggle
+│       ├── state/              # usePhotos (lote), useTemplate (carimbo), useProfiles
 │       └── lib/                # theme, ícones da UI e do carimbo
 └── shared/                     # tipos, IPC, geometria, overlay-svg, formatação (os dois lados)
 assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pendente
@@ -110,6 +111,10 @@ assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pend
 3. **Posicionar uma logo** (PNG ou SVG) livremente sobre a foto, com largura e opacidade.
 4. **Conferir a saída** com o botão *Conferir render (Sharp)*: carimba a foto em tamanho real
    (8064 × 4536 em ~1,1 s) e mostra o resultado no lugar do preview.
+5. **Guardar em perfis** (`.json` em `%APPDATA%/foto-geo/profiles`): salvar, abrir, duplicar e
+   excluir quantos perfis quiser — um por cliente/obra, cada um com sua logo. A barra avisa
+   quando há *alterações não salvas*; perfil de versão antiga abre com o que é válido e diz o
+   que voltou ao padrão.
 
 O preview **não é um desenho parecido** com a saída: é o mesmo SVG que o Sharp compõe no
 arquivo final (`src/shared/overlay-svg.ts`), só escalado. Fonte, ícones (Lucide), posições e
@@ -117,6 +122,7 @@ formatação vêm de código compartilhado — ver `ARQUITETURA.md §6`.
 
 ## Próximos passos
 
-Ordem de implementação em `ARQUITETURA.md §14`: passos 1–5 feitos. O próximo é o passo 6 —
-perfis em JSON (`profile.service`): salvar, carregar e duplicar N perfis, cada um com sua logo.
-Depois vem o lote (passo 7).
+Ordem de implementação em `ARQUITETURA.md §14`: passos 1–6 feitos. O próximo é o passo 7 —
+aplicação em lote (`batch.service`): aplicar o perfil às N fotos importadas gerando cópias em
+uma pasta de saída, com barra de progresso e resumo (sucesso/ignoradas/erro). Depois vem o
+empacotamento `.exe` (passo 8).

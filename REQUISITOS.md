@@ -99,10 +99,16 @@ Ajustáveis pelo usuário:
 - SVG é convertido para PNG na importação (mesma imagem no preview e na saída — `ARQUITETURA.md §6`).
 - *(A marca em si — ENDEGRO vs Quartz — segue em aberto, mas a mecânica é: usuário fornece o arquivo.)*
 
-### ⬜ RF-07 — Perfis e persistência em JSON
+### ✅ RF-07 — Perfis e persistência em JSON
 - Salvar **todas as configurações** (seção, campos, ordem, fonte, posições, logo) em um **arquivo JSON** por perfil.
 - Suportar **N perfis** (ex.: um por cliente/obra), cada um podendo referenciar sua **própria logo** (N logos).
-- Carregar/editar/duplicar perfis.
+- Carregar/editar/duplicar perfis — e excluir, com confirmação em dois toques.
+- Os arquivos ficam em `%APPDATA%/foto-geo/profiles` (gravável mesmo com o app instalado em
+  `Program Files`) — `ARQUITETURA.md §8`.
+- A barra de perfis mostra **"alterações não salvas"**; "Salvar" sobrescreve o perfil aberto e
+  "Salvar como novo" cria outro arquivo (renomear **não** duplica o perfil).
+- Perfil de versão antiga ou editado à mão abre com o que é válido: valor inválido volta ao
+  padrão **avisando na tela**, campo ausente volta ao padrão em silêncio.
 
 ### ✅ RF-08 — Preview fiel
 - Mostrar **preview ao vivo** do template sobre uma imagem real, **idêntico** ao arquivo que será gerado.
@@ -128,7 +134,7 @@ Ajustáveis pelo usuário:
 | RNF-05 | **Fidelidade preview↔saída:** o que se vê no editor é o que é gerado. | ✅ preview usa o SVG da saída |
 | RNF-06 | Desempenho em lote (centenas de fotos, paralelismo controlado). | 🔶 tempos medidos; lote é o passo 7 |
 | RNF-07 | PT-BR; formatos BR (data/decimal). | ✅ textos e formatos BR |
-| RNF-08 | Robustez: uma foto ruim não aborta o lote. | 🔶 leitura/logo protegidas; lote é o passo 7 |
+| RNF-08 | Robustez: uma foto ruim não aborta o lote. | 🔶 leitura, logo e perfis protegidos; lote é o passo 7 |
 | RNF-09 | **Tema claro/escuro** em toda a interface — **apenas esses dois modos** (sem opção "Sistema"), alternáveis no cabeçalho e **persistidos** entre execuções. Na primeira execução o app adota o modo de cor do Windows como valor inicial. Todo componente novo deve nascer com as duas variantes. | ✅ claro/escuro persistido |
 | RNF-10 | **Sem console/DevTools para o usuário:** `F12`, `Ctrl+Shift+I/J/C` (e `Cmd+Alt+I`) bloqueados, DevTools desligado na janela e menu nativo removido. Depuração em desenvolvimento com `FOTOGEO_DEVTOOLS=1 yarn dev`. | ✅ atalhos e menu bloqueados |
 
@@ -143,7 +149,7 @@ Ajustáveis pelo usuário:
      • campos: ordem (DnD), ícones, quais mostrar
      • logo: importar PNG/SVG e arrastar livre
 3. Ver preview ao vivo sobre uma foto real
-4. Salvar perfil (.json)
+4. Salvar perfil (.json — em %APPDATA%/foto-geo/profiles)
 5. [PROCESSAR] → aplica a todas as fotos → pasta de saída
 6. Resumo + abrir pasta
 ```
@@ -152,7 +158,7 @@ Ajustáveis pelo usuário:
 
 ## 7. Modelo de configuração (resumo — detalhe em ARQUITETURA §8)
 
-Tudo salvo em **JSON** com valores **relativos** (0–1) para posição/tamanho, mais a **ordem** dos campos e referência ao arquivo de logo. N perfis = N arquivos `.json` em `profiles/`.
+Tudo salvo em **JSON** com valores **relativos** (0–1) para posição/tamanho, mais a **ordem** dos campos e referência ao arquivo de logo. N perfis = N arquivos `.json` em `%APPDATA%/foto-geo/profiles`.
 
 ---
 
@@ -183,13 +189,13 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 
 ## 10. Escopo
 
-**Fase 1 (MVP)** — estado em 5 dos 9 passos do `ARQUITETURA.md §14`:
+**Fase 1 (MVP)** — estado em 6 dos 9 passos do `ARQUITETURA.md §14`:
 - ✅ Import N imagens + mapeamento/listagem de metadados.
 - ✅ Editor: seção com campos empilhados, reordenar por DnD, local/tamanho/fonte, ícones fixos (Lucide).
   *(fonte Roboto pendente do arquivo `assets/fonts/roboto.ttf` — hoje cai na sans-serif do sistema)*
 - ✅ Logo importada (PNG/SVG) com posicionamento livre.
 - ✅ Preview fiel + preservar originais · ⬜ aplicação em lote.
-- ⬜ Perfis em **JSON** (salvar/carregar/duplicar).
+- ✅ Perfis em **JSON** (salvar/carregar/duplicar/excluir, cada um com sua logo).
 - ⬜ Build `.exe` Windows offline.
 
 **Fase 2:**
@@ -199,10 +205,10 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 
 ## 11. Requisitos de instalação (ambiente de desenvolvimento)
 
-Estado atual do repo (`ARQUITETURA.md §14`, passos 1–5): **import com leitura de telemetria
-(RF-01/RF-02), carimbo gerado pelo Sharp em tamanho real, preview fiel (RF-03/RF-08) e editor
+Estado atual do repo (`ARQUITETURA.md §14`, passos 1–6): **import com leitura de telemetria
+(RF-01/RF-02), carimbo gerado pelo Sharp em tamanho real, preview fiel (RF-03/RF-08), editor
 completo — ordem dos campos por DnD (RF-04), seção/fonte/cores no inspector (RF-05) e logo com
-posição livre (RF-06)**. Faltam perfis em JSON (RF-07) e a aplicação em lote (RF-09).
+posição livre (RF-06) — e perfis em JSON (RF-07)**. Falta a aplicação em lote (RF-09).
 Empacotamento ainda **não** está configurado — ver §11.6.
 
 ### 11.1 Pré-requisitos
@@ -288,6 +294,7 @@ Linux, ou rodando o app no Windows. O import por **botão/seletor** cobre o rest
 | `sharp` | **instalado** (render do carimbo) | libvips com binário por plataforma (`@img/sharp-linux-x64` aqui, `win32-x64` no `.exe`). |
 | `lucide-static` | **instalado** | SVG cru dos ícones do carimbo (sem binário). |
 | `@dnd-kit/*` | **instalado** | Reordenar campos (`core`, `sortable`, `modifiers`, `utilities`) — sem binário. |
+| `zod` | **instalado** | Validação dos perfis `.json` ao carregar (RF-07) — sem binário. |
 
 Binários instalados no WSL/Linux valem só para desenvolvimento — o `.exe` final exige os
 binários **win-x64**, baixados/reconstruídos no Windows na etapa de empacotamento.

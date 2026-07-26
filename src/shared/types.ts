@@ -108,6 +108,31 @@ export interface Template {
 }
 
 /**
+ * Perfil salvo, como aparece na lista do editor (RF-07).
+ * O `id` é o nome do arquivo sem `.json` — é ele que identifica o perfil, não o `name`,
+ * para que renomear não crie um arquivo órfão.
+ */
+export interface ProfileSummary {
+  id: string
+  name: string
+  filePath: string
+  /** ISO da última gravação (mtime), para ordenar por "usado por último". */
+  updatedAt: string
+  /** Perfil ilegível: aparece na lista marcado, sem derrubar os outros (RNF-08). */
+  error?: string
+}
+
+/** Perfil carregado: o template já validado, a logo resolvida e o que foi corrigido. */
+export interface ProfileFile {
+  id: string
+  template: Template
+  /** Logo do perfil já em PNG; `null` quando o perfil não tem logo ou o arquivo sumiu. */
+  logo: LogoAsset | null
+  /** Campos ausentes/inválidos trocados pelo padrão, e logo não encontrada (ARQUITETURA.md §8). */
+  warnings: string[]
+}
+
+/**
  * Logo carregada e pronta para o carimbo.
  *
  * O Main **sempre converte para PNG** (mesmo quando a origem é SVG): o Chromium e o librsvg
@@ -163,4 +188,11 @@ export interface FotoGeoApi {
     template: Template,
     maxWidth: number
   ) => Promise<RenderedPreview>
+  /** Perfis salvos, do mais recente para o mais antigo. */
+  listProfiles: () => Promise<ProfileSummary[]>
+  loadProfile: (id: string) => Promise<ProfileFile>
+  /** `id` nulo cria um perfil novo a partir do `name` do template; senão sobrescreve. */
+  saveProfile: (id: string | null, template: Template) => Promise<ProfileSummary>
+  duplicateProfile: (id: string) => Promise<ProfileSummary>
+  deleteProfile: (id: string) => Promise<void>
 }

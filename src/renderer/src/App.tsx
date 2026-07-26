@@ -4,9 +4,11 @@ import EditorCanvas from './components/EditorCanvas'
 import ImportDropzone from './components/ImportDropzone'
 import InspectorPanel from './components/InspectorPanel'
 import MetadataList from './components/MetadataList'
+import ProfileBar from './components/ProfileBar'
 import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './lib/theme'
 import { usePhotos } from './state/usePhotos'
+import { useProfiles } from './state/useProfiles'
 import { useTemplate } from './state/useTemplate'
 import type { AppInfo } from '@shared/types'
 
@@ -26,6 +28,7 @@ export default function App(): React.JSX.Element {
   const {
     template,
     logoAsset,
+    setName,
     moveSection,
     resizeSection,
     patchSection,
@@ -35,8 +38,10 @@ export default function App(): React.JSX.Element {
     resizeLogo,
     setLogoOpacity,
     setLogoAsset,
+    applyTemplate,
     reset
   } = useTemplate()
+  const profiles = useProfiles(template, applyTemplate, reset)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
@@ -138,6 +143,26 @@ export default function App(): React.JSX.Element {
               <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
                 Logo: {logoError}
               </p>
+            )}
+
+            {selected && (
+              <ProfileBar
+                profiles={profiles.profiles}
+                activeId={profiles.activeId}
+                name={template.name}
+                isDirty={profiles.isDirty}
+                isBusy={profiles.isBusy}
+                error={profiles.error}
+                warnings={profiles.warnings}
+                onName={setName}
+                onLoad={(id) => void profiles.load(id)}
+                onSave={() => void profiles.save()}
+                onSaveAsNew={() => void profiles.saveAsNew()}
+                onDuplicate={(id) => void profiles.duplicate(id)}
+                onDelete={(id) => void profiles.remove(id)}
+                onNew={profiles.detach}
+                onDismiss={profiles.dismiss}
+              />
             )}
 
             {selected && (

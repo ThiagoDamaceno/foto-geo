@@ -6,6 +6,8 @@ import type {
   FotoGeoApi,
   LogoAsset,
   PreviewImage,
+  ProfileFile,
+  ProfileSummary,
   RenderedPreview,
   ScanResult
 } from '@shared/types'
@@ -22,7 +24,14 @@ const api: FotoGeoApi = {
   renderPreview: (photo, template, maxWidth) =>
     ipcRenderer.invoke(IPC.renderPreview, photo, template, maxWidth) as Promise<RenderedPreview>,
   pickLogo: () => ipcRenderer.invoke(IPC.pickLogo) as Promise<LogoAsset | null>,
-  readLogo: (filePath) => ipcRenderer.invoke(IPC.readLogo, filePath) as Promise<LogoAsset>
+  readLogo: (filePath) => ipcRenderer.invoke(IPC.readLogo, filePath) as Promise<LogoAsset>,
+  listProfiles: () => ipcRenderer.invoke(IPC.profilesList) as Promise<ProfileSummary[]>,
+  loadProfile: (id) => ipcRenderer.invoke(IPC.profilesLoad, id) as Promise<ProfileFile>,
+  saveProfile: (id, template) =>
+    ipcRenderer.invoke(IPC.profilesSave, id, template) as Promise<ProfileSummary>,
+  duplicateProfile: (id) =>
+    ipcRenderer.invoke(IPC.profilesDuplicate, id) as Promise<ProfileSummary>,
+  deleteProfile: (id) => ipcRenderer.invoke(IPC.profilesDelete, id) as Promise<void>
 }
 
 if (process.contextIsolated) {

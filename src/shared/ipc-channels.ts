@@ -8,5 +8,10 @@ export const IPC = {
   previewImage: 'photos:preview',
   renderPreview: 'preview:render',
   pickLogo: 'logo:pick',
-  readLogo: 'logo:read'
+  readLogo: 'logo:read',
+  profilesList: 'profiles:list',
+  profilesLoad: 'profiles:load',
+  profilesSave: 'profiles:save',
+  profilesDuplicate: 'profiles:duplicate',
+  profilesDelete: 'profiles:delete'
 } as const

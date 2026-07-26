@@ -53,7 +53,7 @@ Dois processos, com **separação estrita**: a UI/editor roda no **Renderer (Rea
 | Fonte | **Roboto** (arquivo `.ttf` local, embarcado) | Offline; embutida em base64 no SVG do render. |
 | Drag & drop (reordenar campos) | **`@dnd-kit`** (+ `sortable`, `modifiers`) | Leve, acessível, TS-first. |
 | Drag livre (seção/logo no canvas) | Ponteiro + coords relativas (custom) | `DragBox` no `EditorCanvas`: 40 linhas contra uma dependência a mais, e já trabalha em fração da imagem. |
-| Perfis | **JSON** (`fs` + `JSON.parse/stringify`) | Sem lib extra; suporta listas/aninhamento nativamente. |
+| Perfis | **JSON** (`fs` + `JSON.parse/stringify`) + **`zod`** na leitura | Sem formato próprio; a validação é o que permite abrir perfil de versão antiga (ou editado à mão) sem quebrar o editor — §8. |
 | Concorrência lote | **`p-limit`** | Limita imagens simultâneas. |
 | Empacotar | **`electron-builder`** | NSIS + portátil Windows. |
 
@@ -82,7 +82,7 @@ foto-geo/
 │   │       ├── logo.service.ts        # logo PNG/SVG → PNG + proporção (RF-06)
 │   │       ├── icon-markup.ts         # ícones Lucide (lucide-static) para o SVG do carimbo
 │   │       ├── batch.service.ts       # lote, progresso, concorrência
-│   │       └── profile.service.ts     # JSON <-> Template (ler/gravar/listar)
+│   │       └── profile.service.ts     # JSON <-> Template: listar/carregar/gravar/duplicar/excluir (RF-07)
 │   ├── preload/index.ts               # contextBridge (API segura)
 │   ├── renderer/
 │   │   ├── App.tsx
@@ -92,11 +92,12 @@ foto-geo/
 │   │   │   ├── EditorCanvas.tsx        # foto + overlay SVG + alças (seção e logo)
 │   │   │   ├── InspectorPanel.tsx      # largura, fonte, espaçamentos, cores, logo
 │   │   │   ├── FieldList.tsx           # campos: reordenar (dnd-kit) e ligar/desligar
-│   │   │   ├── ProfileBar.tsx          # escolher/salvar/duplicar perfil (passo 6)
+│   │   │   ├── ProfileBar.tsx          # escolher/salvar/duplicar/excluir perfil (RF-07)
 │   │   │   ├── ProgressBar.tsx / SummaryPanel.tsx   # lote (passo 7)
 │   │   │   └── ThemeToggle.tsx          # alterna claro ⇄ escuro (RNF-09)
 │   │   ├── state/
 │   │   │   ├── usePhotos.ts            # lote importado
+│   │   │   ├── useProfiles.ts          # perfis salvos + "alterações não salvas"
 │   │   │   └── useTemplate.ts          # template em edição + logo carregada
 │   │   ├── lib/theme.ts                # tema: data-theme no <html> + localStorage
 │   │   ├── lib/field-icons.ts          # FieldKey -> componente lucide-react (UI do app)
@@ -111,16 +112,18 @@ foto-geo/
 │       ├── image-formats.ts            # extensões aceitas no import (RF-01)
 │       └── template-defaults.ts        # perfil padrão
 ├── assets/fonts/roboto.ttf             # fonte embarcada (offline)
-├── profiles/                           # perfis .json + logos do usuário
 └── build/                              # ícones do app, config builder (só na fase de empacotamento — §12)
 ```
 
-> **Estado atual (passos 1–5 do §14 concluídos):** esqueleto + IPC, import com leitura de
-> telemetria, geração do carimbo (`shared/overlay-svg` + `render.service`), preview fiel e o
+> **Estado atual (passos 1–6 do §14 concluídos):** esqueleto + IPC, import com leitura de
+> telemetria, geração do carimbo (`shared/overlay-svg` + `render.service`), preview fiel, o
 > **editor completo** — seção e logo arrastáveis/redimensionáveis, ordem dos campos por DnD e
-> inspector (largura, fonte, espaçamentos, cores, rótulos, visibilidade). Faltam
-> `profile.service` (passo 6) e `batch.service` (passo 7).
-> Instalação/execução: `REQUISITOS.md §11`.
+> inspector (largura, fonte, espaçamentos, cores, rótulos, visibilidade) — e os **perfis em
+> JSON** (`profile.service` + `ProfileBar`: salvar, abrir, duplicar, excluir, N logos).
+> Falta o `batch.service` (passo 7). Instalação/execução: `REQUISITOS.md §11`.
+>
+> Os perfis do usuário **não** ficam na pasta do projeto: gravam em `userData`
+> (`%APPDATA%/foto-geo/profiles` no Windows) — §8.
 >
 > `SectionElement`/`LogoElement`/`FieldRow` não viraram arquivos próprios: como a parte visual
 > é o SVG, sobrou uma alça genérica (`DragBox`, dentro do `EditorCanvas`) usada pelos dois
@@ -198,6 +201,12 @@ export interface PhotoMetadata {
   present: FieldKey[];      // o que existe nesta foto (RF-02)
 }
 
+// perfis (§8): o `id` é o nome do arquivo, e o `name` é só rótulo
+export interface ProfileSummary { id: string; name: string; filePath: string;
+  updatedAt: string; error?: string; }          // `error` = arquivo ilegível (RNF-08)
+export interface ProfileFile { id: string; template: Template;
+  logo: LogoAsset | null; warnings: string[]; } // avisos = o que caiu no padrão ao carregar
+
 export interface BatchConfig { photos: string[]; outputDir: string; template: Template; }
 export interface JobProgress { total: number; processed: number; currentFile: string;
   succeeded: number; skipped: number; failed: number; }
@@ -216,14 +225,14 @@ export interface JobResult  { total: number; succeeded: number; skipped: number;
 | `photos:scan` | R→M invoke | ✅ Recebe arquivos e/ou pastas, valida os caminhos e devolve `ScanResult` (`PhotoMetadata[]` com `present` + `ignored[]`). |
 | `photos:preview` | R→M invoke | ✅ Foto reduzida (data URL) para o fundo do editor — o original tem ~36 MP. |
 | `preview:render` | R→M invoke | ✅ Carimba 1 foto em tamanho real com o Sharp e devolve reduzida + tempo, para conferir a fidelidade. |
-| `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` | R→M invoke | ⬜ CRUD de perfis `.json` (passo 6). |
+| `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` / `profiles:delete` | R→M invoke | ✅ CRUD de perfis `.json` (§8). `load` devolve o template validado, a logo já em PNG e os avisos; `save` com `id` nulo cria arquivo novo. |
 | `logo:pick` | R→M invoke | ✅ Selecionar PNG/SVG da logo → `LogoAsset` (PNG + proporção). |
 | `logo:read` | R→M invoke | ✅ Recarregar uma logo já referenciada por um perfil (cache por mtime). |
 | `batch:start` / `batch:cancel` | R→M invoke | Rodar/cancelar lote. |
 | `batch:progress` / `batch:done` | M→R send | `JobProgress` / `JobResult`. |
 | `shell:openPath` | R→M invoke | Abrir pasta de saída. |
 
-API no preload: `window.fotoGeo = { ping, getAppInfo, pickImages, pickFolder, scanPhotos, renderPreview, listProfiles, loadProfile, saveProfile, pickLogo, startBatch, cancelBatch, openPath, onProgress, onDone }` — as cinco primeiras já existem.
+API no preload: `window.fotoGeo = { ping, getAppInfo, pickImages, pickFolder, scanPhotos, getPreviewImage, renderPreview, pickLogo, readLogo, listProfiles, loadProfile, saveProfile, duplicateProfile, deleteProfile, startBatch, cancelBatch, openPath, onProgress, onDone }` — só as cinco últimas (lote) faltam.
 
 O **caminho real** de um arquivo arrastado vem de `window.electron.webUtils.getPathForFile(file)`
 (`@electron-toolkit/preload`): o Electron removeu o `File.path`. O Renderer só manda caminhos;
@@ -301,13 +310,14 @@ buracos.
 
 ---
 
-## 8. Persistência: perfis em JSON
+## 8. Persistência: perfis em JSON  ✅ (RF-07)
 
-N perfis = **um arquivo `.json` por perfil** em `profiles/` (a logo é referenciada por caminho, permitindo N logos). O arquivo é a serialização direta do tipo `Template` — a **ordem** do array `section.fields` já é a ordem vertical (o DnD só reordena esse array). Exemplo:
+N perfis = **um arquivo `.json` por perfil**, e a logo é **referenciada por caminho** — daí os N perfis com N logos. O arquivo é a serialização direta do tipo `Template` (mais um `version`); a **ordem** do array `section.fields` já é a ordem vertical (o DnD só reordena esse array). Exemplo do que é gravado:
 
 ```json
 {
-  "name": "Padrão ENDEGRO",
+  "version": 1,
+  "name": "Obra São João",
   "section": {
     "x": 0.03, "y": 0.72,
     "widthPct": 0.28,
@@ -324,17 +334,33 @@ N perfis = **um arquivo `.json` por perfil** em `profiles/` (a logo é referenci
       { "key": "altitude",  "visible": true, "showIcon": true, "showLabel": true },
       { "key": "date",      "visible": true, "showIcon": true, "showLabel": false },
       { "key": "time",      "visible": true, "showIcon": true, "showLabel": false },
-      { "key": "model",     "visible": true, "showIcon": true, "showLabel": false }
+      { "key": "model",     "visible": true, "showIcon": true, "showLabel": false },
+      { "key": "direction", "visible": true, "showIcon": true, "showLabel": false }
     ]
   },
   "logo": {
-    "filePath": "logos/endegro.png",
+    "filePath": "C:/Users/thiago/logos/endegro.png",
     "x": 0.82, "y": 0.86, "widthPct": 0.15, "opacity": 1.0
   }
 }
 ```
 
-`profile.service.ts` faz `JSON.parse/stringify` + **validação de esquema** (ex.: Zod) ao carregar, aplicando o perfil padrão (`template-defaults.ts`) a campos ausentes para compatibilidade entre versões.
+**Onde ficam.** Em `userData/profiles` (`%APPDATA%/foto-geo/profiles` no Windows), **não** na pasta do app: com o `.exe` instalado em `Program Files` aquela pasta não é gravável, e o `userData` sobrevive à atualização. (Se um dia o produto for portátil "tudo numa pasta", é só esta função que muda.)
+
+**Identidade.** O perfil é identificado pelo **nome do arquivo** (`id`), gerado do nome na primeira gravação (`Obra São João` → `obra-sao-joao.json`), com sufixo numérico quando já existe. Consequência de projeto: **renomear e salvar não cria arquivo novo** — para isso existe o "Salvar como novo". O `id` que vem do Renderer é validado contra `/^[a-z0-9][a-z0-9-]{0,60}$/` antes de virar caminho, o que barra `../` (§11).
+
+**Dois botões parecidos, de propósito:** o "Padrão" do inspector zera o carimbo **continuando no perfil aberto** (salvar depois sobrescreve aquele perfil), enquanto o "Novo (padrão)" da barra zera o carimbo **e sai do perfil** — o próximo salvar cria arquivo novo.
+
+**Validação (`zod`).** Ao carregar, cada propriedade é validada isoladamente contra os **mesmos limites do inspector**:
+
+- valor **inválido** → cai no padrão (`template-defaults.ts`) e gera **aviso na tela** (`Seção · cor de fundo: valor inválido (preto) — padrão aplicado.`);
+- valor **ausente** → cai no padrão em silêncio (é o caso de perfil salvo por versão anterior);
+- `fields`: a ordem do arquivo é preservada, chave desconhecida ou repetida sai, campo que falta entra no fim — assim um campo novo em versão futura aparece sem invalidar o perfil;
+- **JSON corrompido** não some da lista: o perfil aparece marcado como "(ilegível)" e os outros abrem normalmente (RNF-08).
+
+**Logo.** No `load` o Main já resolve a logo para PNG (`logo.service`) e devolve junto. Arquivo movido/apagado vira aviso e o perfil abre sem logo — mas **o caminho continua no perfil**, porque pode ser um drive desconectado e apagar a referência sozinho perderia a configuração do usuário.
+
+**Gravação.** `writeFile` num `.tmp` + `rename`: um travamento no meio não deixa um `.json` pela metade.
 
 ---
 
@@ -434,6 +460,7 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 | GPS só no XMP (não no EXIF padrão) | `exif.service` **prioriza o namespace `drone-dji`** (GPS em decimal) e usa o EXIF como fallback; nunca depende só de `GPSImgDirection` (ausente na amostra). |
 | Modelo exibido como `FC9589` | Usar `drone-dji:ProductName` (`Lito X1`); `Make`+`Model` só como fallback. |
 | Arquivos grandes (~25 MB, 8064 px) em lote | `sharp` por streaming + `p-limit(núcleos-1)`; SVG do overlay dimensionado à largura real. |
+| Perfil de versão antiga (ou editado à mão) deixar o editor num estado impossível | Validação por propriedade com `zod` na leitura, com os limites do inspector: inválido cai no padrão **e avisa na tela**, ausente cai no padrão em silêncio (§8). JSON corrompido aparece na lista como "(ilegível)" em vez de derrubar a lista. |
 | PNG/BMP sem EXIF de GPS (caso secundário) | Mostrar `present[]` por foto (RF-02); regra p/ ausência (a confirmar) — não é o fluxo principal. |
 | Roboto diferente entre tela e Sharp | Embutir `roboto.ttf` em base64 (`@font-face`) no SVG usado pelo Sharp (§9.1). **Enquanto a fonte não entra**, os dois lados caem na sans-serif do sistema; o `librsvg` resolve fonte por **fontconfig**, então a Roboto embarcada exigirá conf própria no empacotamento. |
 | `sharp` dentro do Electron no Linux | Aviso `[SharpElectronLinux]` + ruído de `GLib-GObject` no terminal do WSL (o binário do libvips convive com a GLib do Electron). Funciona, mas é barulhento; o alvo é Windows, onde não ocorre — `REQUISITOS.md §11.3`. |
@@ -445,7 +472,7 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 
 ## 14. Ordem de implementação
 
-> **Estado: 5 de 9 concluídos** (✅ pronto · ⬜ pendente). Este é o placar do projeto —
+> **Estado: 6 de 9 concluídos** (✅ pronto · ⬜ pendente). Este é o placar do projeto —
 > atualizar aqui, no "Estado atual" da §3 e nas marcas do `REQUISITOS.md §4/§5` a cada
 > passo fechado.
 
@@ -459,7 +486,10 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
    alinhamento exato, seção arrastável e redimensionável.
 5. ✅ Editor completo: campos com DnD (`@dnd-kit`), inspector (largura, fonte, espaçamentos,
    cores, rótulos, visibilidade) e logo PNG/SVG com posição/tamanho livres.
-6. ⬜ `profile.service` (JSON + validação Zod) → salvar/carregar/duplicar perfis (N logos).
+6. ✅ `profile.service` (JSON + validação Zod) → salvar/abrir/duplicar/excluir perfis em
+   `userData/profiles`, cada um com sua logo, e `ProfileBar` com marca de "alterações não
+   salvas". Verificado: perfil de versão antiga e JSON corrompido abrem com aviso em vez de
+   quebrar, e `id` com `../` é recusado.
 7. ⬜ `batch.service` → lote, progresso, resumo, preservar originais.
 8. ⬜ `electron-builder` → `.exe` Windows e teste em máquina real.
 9. ⬜ Fase 2 (mini mapa offline, direção, preenchimento manual, relatório).

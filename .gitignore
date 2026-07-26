@@ -6,8 +6,8 @@ exemplos
 out
 *.tsbuildinfo
 
-# perfis e logos do usuário (gerados em runtime)
-profiles
+# os perfis do usuário ficam em userData (%APPDATA%/foto-geo/profiles), fora do repo —
+# ARQUITETURA.md §8
 
 # logs / SO
 *.log
