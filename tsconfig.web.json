@@ -9,6 +9,9 @@
     "composite": true,
     "target": "ES2022",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    /* vite/client traz os módulos virtuais (`*.svg?raw`) e mantém os globais do Node fora
+       do Renderer — quem fala com o SO é o Main. */
+    "types": ["vite/client"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",

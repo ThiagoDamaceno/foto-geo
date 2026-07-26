@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, shell, BrowserWindow, Menu, nativeTheme } from 'electron'
 import { electronApp, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc/handlers'
+import { disposeExifTool } from './services/exif.service'
 import { applyContentSecurityPolicy } from './security'
 import { hardenWindowShortcuts, DEVTOOLS_ENABLED } from './shortcuts'
 
@@ -82,5 +83,11 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
+  })
+
+  // O exiftool roda em processos filhos — sem isso eles ficariam órfãos.
+  app.on('will-quit', (event) => {
+    event.preventDefault()
+    void disposeExifTool().finally(() => app.exit(0))
   })
 }

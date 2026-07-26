@@ -1,8 +1,13 @@
 @import 'tailwindcss';
 
-/* Tema controlado pelo app (claro/escuro/sistema) via `data-theme` no <html> —
-   ver `lib/theme.ts`. Substitui o `prefers-color-scheme` padrão do Tailwind. */
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+/* Tema controlado pelo app (claro ou escuro) via `data-theme` no <html> —
+   ver `lib/theme.ts`. Substitui o `prefers-color-scheme` padrão do Tailwind.
+
+   `:is()` e não `:where()`: o `:where()` da receita padrão tem especificidade ZERO, então
+   `dark:bg-slate-900/40` empatava com `bg-white` e a ordem do CSS gerado decidia — resultado:
+   caixas brancas no tema escuro. Com `:is([data-theme='dark'] …)` a variante ganha
+   especificidade de atributo e vence sempre. */
+@custom-variant dark (&:is([data-theme='dark'], [data-theme='dark'] *));
 
 /* Fonte embarcada (offline) — ARQUITETURA.md §9.1.
    Descomentar quando assets/fonts/roboto.ttf entrar no repo.

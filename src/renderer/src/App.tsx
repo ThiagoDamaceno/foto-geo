@@ -1,102 +1,146 @@
-import { useEffect, useState } from 'react'
-import { MapPin, Mountain, Calendar, Clock, Plane, Compass } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { FileWarning, Images, Trash2 } from 'lucide-react'
+import EditorCanvas from './components/EditorCanvas'
+import ImportDropzone from './components/ImportDropzone'
+import MetadataList from './components/MetadataList'
 import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './lib/theme'
+import { usePhotos } from './state/usePhotos'
+import { useTemplate } from './state/useTemplate'
 import type { AppInfo } from '@shared/types'
 
-/** Placeholder do editor — prova que Renderer, Tailwind, tema, ícones e IPC estão de pé. */
 export default function App(): React.JSX.Element {
   const { theme, toggle } = useTheme()
+  const {
+    photos,
+    ignored,
+    isScanning,
+    error,
+    importPaths,
+    pickImages,
+    pickFolder,
+    removePhoto,
+    clear
+  } = usePhotos()
+  const { template, moveSection, resizeSection, reset } = useTemplate()
   const [info, setInfo] = useState<AppInfo | null>(null)
-  const [ipcStatus, setIpcStatus] = useState<'…' | 'ok' | 'falhou'>('…')
+  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+
+  /** Foto de referência do editor: a escolhida, ou a primeira com telemetria e tamanho. */
+  const selected = useMemo(() => {
+    const byPath = photos.find((photo) => photo.filePath === selectedPath)
+    return byPath ?? photos.find((photo) => photo.width > 0 && !photo.error) ?? null
+  }, [photos, selectedPath])
 
   useEffect(() => {
-    void window.fotoGeo
-      .getAppInfo()
-      .then(setInfo)
-      .catch(() => setIpcStatus('falhou'))
-
-    void window.fotoGeo
-      .ping()
-      .then((r) => setIpcStatus(r === 'pong' ? 'ok' : 'falhou'))
-      .catch(() => setIpcStatus('falhou'))
+    // Sem console para o usuário (RNF-10): um erro aqui não pode derrubar a árvore
+    // do React e deixar a janela em branco.
+    try {
+      void window.fotoGeo.getAppInfo().then(setInfo).catch(() => setInfo(null))
+    } catch {
+      setInfo(null)
+    }
   }, [])
+
+  const hasPhotos = photos.length > 0
+  const withError = photos.filter((photo) => photo.error).length
 
   return (
     <div className="flex h-full flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Foto Geo</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Carimbo de telemetria em lote · 100% offline
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              ipcStatus === 'ok'
-                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                : ipcStatus === 'falhou'
-                  ? 'bg-red-500/15 text-red-700 dark:text-red-300'
-                  : 'bg-slate-500/15 text-slate-600 dark:text-slate-300'
-            }`}
-          >
-            IPC: {ipcStatus}
-          </span>
-          <ThemeToggle theme={theme} onToggle={toggle} />
-        </div>
+        <ThemeToggle theme={theme} onToggle={toggle} />
       </header>
 
-      <main className="flex flex-1 items-center justify-center p-8">
-        <div className="w-full max-w-xl space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">Hello, drone 👋</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Esqueleto Electron + React + TypeScript + Tailwind pronto. Próximo passo:
-              leitura de EXIF/XMP{' '}
-              <code className="text-slate-700 dark:text-slate-300">drone-dji</code>.
-            </p>
-          </div>
+      <main className="flex-1 space-y-4 overflow-y-auto p-6">
+        <ImportDropzone
+          isScanning={isScanning}
+          compact={hasPhotos}
+          onDropPaths={(paths) => void importPaths(paths)}
+          onPickImages={() => void pickImages()}
+          onPickFolder={() => void pickFolder()}
+        />
 
-          <ul className="grid grid-cols-2 gap-3 text-sm">
-            {[
-              { Icon: MapPin, label: 'Latitude / Longitude' },
-              { Icon: Mountain, label: 'Altitude' },
-              { Icon: Calendar, label: 'Data' },
-              { Icon: Clock, label: 'Hora' },
-              { Icon: Plane, label: 'Modelo do drone' },
-              { Icon: Compass, label: 'Direção' }
-            ].map(({ Icon, label }) => (
-              <li
-                key={label}
-                className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300"
-              >
-                <Icon className="size-4 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
-                {label}
+        {error && (
+          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+            Falha ao importar: {error}
+          </p>
+        )}
+
+        {ignored.length > 0 && (
+          <ul className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+            {ignored.map((item) => (
+              <li key={item.filePath} className="flex items-center gap-2">
+                <FileWarning className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate" title={item.filePath}>
+                  {item.filePath}
+                </span>
+                <span className="shrink-0 opacity-75">— {item.reason}</span>
               </li>
             ))}
           </ul>
+        )}
 
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-slate-200 pt-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-            <Row label="Versão" value={info?.appVersion} />
-            <Row label="Electron" value={info?.electron} />
-            <Row label="Chromium" value={info?.chrome} />
-            <Row label="Node" value={info?.node} />
-            <Row label="Plataforma" value={info?.platform} />
-            <Row label="Empacotado" value={info ? (info.isPackaged ? 'sim' : 'não') : undefined} />
-          </dl>
-        </div>
+        {hasPhotos ? (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <Images className="size-4" aria-hidden />
+                <strong className="font-semibold">{photos.length}</strong>
+                foto{photos.length > 1 ? 's' : ''} no lote
+                {withError > 0 && (
+                  <span className="text-red-600 dark:text-red-400">
+                    · {withError} com erro de leitura
+                  </span>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={clear}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <Trash2 className="size-4" aria-hidden />
+                Limpar lote
+              </button>
+            </div>
+
+            {selected && (
+              <EditorCanvas
+                photo={selected}
+                template={template}
+                onMoveSection={moveSection}
+                onResizeSection={resizeSection}
+                onResetTemplate={reset}
+              />
+            )}
+
+            <MetadataList
+              photos={photos}
+              selectedPath={selected?.filePath ?? null}
+              onSelect={setSelectedPath}
+              onRemove={removePhoto}
+            />
+          </>
+        ) : (
+          !isScanning && (
+            <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+              Nenhuma foto importada ainda. O próximo passo do app — editor do carimbo — usa a
+              telemetria lida aqui.
+            </p>
+          )
+        )}
       </main>
-    </div>
-  )
-}
 
-function Row({ label, value }: { label: string; value?: string }): React.JSX.Element {
-  return (
-    <div className="flex justify-between gap-2">
-      <dt>{label}</dt>
-      <dd className="font-mono text-slate-700 dark:text-slate-300">{value ?? '—'}</dd>
+      <footer className="shrink-0 border-t border-slate-200 px-6 py-2 text-[11px] text-slate-400 dark:border-slate-800 dark:text-slate-500">
+        {info
+          ? `v${info.appVersion} · Electron ${info.electron} · Chromium ${info.chrome} · Node ${info.node} · ${info.platform}`
+          : '—'}
+      </footer>
     </div>
   )
 }

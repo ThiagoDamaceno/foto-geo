@@ -160,12 +160,11 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 
 ## 9. Questões em aberto
 
-1. **Tamanho da fonte:** valor relativo (% da imagem, escala junto) ou px fixo? *(Proponho relativo, exibindo px aproximado.)*
-2. **Altitude a exibir:** padrão = **absoluta** (`GPSAltitude`/`AbsoluteAltitude`, como na proposta); confirmar se a **relativa** (`RelativeAltitude`) deve ser opção selecionável ou exibida junto.
-3. **Nome dos arquivos de saída** (sufixo `_geo`? manter nome?).
-4. **Marca/logo oficial** (ENDEGRO vs Quartz) — só afeta o exemplo/branding, não a mecânica.
+1. **Altitude a exibir:** implementado como **absoluta** (`AbsoluteAltitude`/`GPSAltitude`), caindo na **relativa** quando a absoluta falta. Confirmar se a relativa deve virar opção no inspector ou aparecer junto.
+2. **Nome dos arquivos de saída** (sufixo `_geo`? manter nome?) — ainda em aberto; o lote (passo 7) precisa dessa definição.
+3. **Marca/logo oficial** (ENDEGRO vs Quartz) — só afeta o exemplo/branding, não a mecânica.
 
-**Resolvidas:** perfis em **JSON**; posição da seção e da logo **livres**; ícones = **Lucide, fixos por campo**; fonte = **Roboto**; **formato principal = JPG DJI** (EXIF+XMP presentes); **GPS lido do XMP `drone-dji` (decimal)** com fallback EXIF; **modelo = `ProductName`**. Fotos PNG/BMP sem GPS deixam de ser o caso central (secundário — a definir tratamento).
+**Resolvidas:** perfis em **JSON**; posição da seção e da logo **livres**; ícones = **Lucide, fixos por campo**; fonte = **Roboto**; **formato principal = JPG DJI** (EXIF+XMP presentes); **GPS lido do XMP `drone-dji` (decimal)** com fallback EXIF; **modelo = `ProductName`**; **tamanho da fonte é relativo** (`fontPct` = fração da largura da imagem — escala junto, RNF-04); **campo sem valor não entra no carimbo** (a caixa encolhe). Fotos PNG/BMP sem GPS deixam de ser o caso central (secundário — a definir tratamento).
 
 ---
 
@@ -186,8 +185,11 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 
 ## 11. Requisitos de instalação (ambiente de desenvolvimento)
 
-Estado atual do repo: **esqueleto Electron + React + TS + Tailwind rodando em `yarn dev`**
-(`ARQUITETURA.md §14`, passo 1). Empacotamento ainda **não** está configurado — ver §11.5.
+Estado atual do repo (`ARQUITETURA.md §14`, passos 1–4): **import com leitura de telemetria
+(RF-01/RF-02), carimbo gerado pelo Sharp em tamanho real e preview fiel (RF-03/RF-08), com a
+seção arrastável e redimensionável (parte do RF-05)**. Faltam ordem dos campos por DnD (RF-04),
+inspector, logo (RF-06), perfis (RF-07) e lote (RF-09). Empacotamento ainda **não** está
+configurado — ver §11.6.
 
 ### 11.1 Pré-requisitos
 
@@ -227,9 +229,19 @@ sudo apt install -y libnss3 libnspr4 libasound2t64   # Ubuntu < 24.04: libasound
 Ainda é necessário **WSLg** (Windows 11, ou Windows 10 com WSL atualizado) para a janela
 aparecer — confira que `echo $DISPLAY` retorna algo (ex.: `:0`).
 
+A leitura de metadados usa o `exiftool-vendored`, que no Linux executa o **exiftool em perl**
+com o interpretador do sistema (o Ubuntu já traz; confira com `perl -v`). No Windows o pacote
+usa o `exiftool.exe` embarcado — nada a instalar.
+
 O WSL não expõe GPU utilizável ao Chromium; o Main já **desliga a aceleração de hardware
 quando `process.platform === 'linux'`**, então a renderização é por software (suficiente
 para o editor) e o log fica limpo. Em Windows a aceleração continua ligada.
+
+**Ruído esperado no WSL:** ao usar o `sharp` dentro do Electron em Linux aparecem o aviso
+`[SharpElectronLinux] Binaries provided by Electron … may be incompatible with sharp` e várias
+linhas `GLib-GObject: g_object_ref: assertion 'G_IS_OBJECT (object)' failed`. O render funciona
+(verificado nas 13 fotos da amostra) — é conflito de GLib entre o libvips e o Electron, e não
+acontece no Windows, que é o alvo. Ignore essas linhas ao ler o log.
 
 ### 11.4 Fotos de teste no WSL (arquivos que estão no Windows)
 
@@ -254,11 +266,16 @@ Linux, ou rodando o app no Windows. O import por **botão/seletor** cobre o rest
 > também é uma opção — aí DnD e desempenho ficam iguais ao do usuário final. Só não misture
 > o mesmo `node_modules` entre WSL e Windows (binários de plataforma diferente).
 
-### 11.5 Dependências nativas (quando entrarem)
+### 11.5 Dependências nativas
 
-`sharp` e `exiftool-vendored` (`ARQUITETURA.md §2`) trazem binários por plataforma:
-instalados no WSL/Linux valem só para desenvolvimento — o `.exe` final exige os binários
-**win-x64**, reconstruídos no Windows na etapa de empacotamento.
+| Pacote | Situação | Observação |
+|--------|----------|------------|
+| `exiftool-vendored` | **instalado** (leitura de EXIF/XMP) | Vem com binários por plataforma; no Linux precisa do perl do sistema (§11.3). |
+| `sharp` | **instalado** (render do carimbo) | libvips com binário por plataforma (`@img/sharp-linux-x64` aqui, `win32-x64` no `.exe`). |
+| `lucide-static` | **instalado** | SVG cru dos ícones do carimbo (sem binário). |
+
+Binários instalados no WSL/Linux valem só para desenvolvimento — o `.exe` final exige os
+binários **win-x64**, baixados/reconstruídos no Windows na etapa de empacotamento.
 
 ### 11.6 Empacotamento — postergado
 

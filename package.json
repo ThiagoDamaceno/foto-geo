@@ -16,9 +16,12 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "exiftool-vendored": "^37.0.0",
     "lucide-react": "^0.545.0",
+    "lucide-static": "^1.27.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.16",

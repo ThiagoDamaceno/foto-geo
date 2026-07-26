@@ -1,12 +1,25 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { IPC } from '../shared/ipc-channels'
-import type { AppInfo, FotoGeoApi } from '../shared/types'
+import { IPC } from '@shared/ipc-channels'
+import type {
+  AppInfo,
+  FotoGeoApi,
+  PreviewImage,
+  RenderedPreview,
+  ScanResult
+} from '@shared/types'
 
 /** Única superfície de contato do Renderer com o Node (ARQUITETURA.md §5/§11). */
 const api: FotoGeoApi = {
   ping: () => ipcRenderer.invoke(IPC.ping),
-  getAppInfo: () => ipcRenderer.invoke(IPC.appInfo) as Promise<AppInfo>
+  getAppInfo: () => ipcRenderer.invoke(IPC.appInfo) as Promise<AppInfo>,
+  pickImages: () => ipcRenderer.invoke(IPC.pickImages) as Promise<string[]>,
+  pickFolder: () => ipcRenderer.invoke(IPC.pickFolder) as Promise<string[]>,
+  scanPhotos: (paths) => ipcRenderer.invoke(IPC.scanPhotos, paths) as Promise<ScanResult>,
+  getPreviewImage: (filePath, maxWidth) =>
+    ipcRenderer.invoke(IPC.previewImage, filePath, maxWidth) as Promise<PreviewImage>,
+  renderPreview: (photo, template, maxWidth) =>
+    ipcRenderer.invoke(IPC.renderPreview, photo, template, maxWidth) as Promise<RenderedPreview>
 }
 
 if (process.contextIsolated) {

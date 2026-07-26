@@ -73,19 +73,42 @@ rodando no Windows). Detalhes em `REQUISITOS.md §11.4`.
 
 ```
 src/
-├── main/                 # processo Node
-│   ├── index.ts          # janela, ciclo de vida
-│   ├── security.ts       # CSP (rede bloqueada em produção)
-│   ├── shortcuts.ts      # F12/DevTools, reload e zoom bloqueados
-│   └── ipc/handlers.ts   # handlers IPC
-├── preload/              # contextBridge → window.fotoGeo
-├── renderer/             # React + Tailwind (editor WYSIWYG)
-│   └── src/lib/theme.ts  # tema claro/escuro
-└── shared/               # tipos e canais IPC usados pelos dois lados
-assets/fonts/             # roboto.ttf (embarcada, offline)
+├── main/                       # processo Node
+│   ├── index.ts                # janela, ciclo de vida
+│   ├── security.ts             # CSP (rede bloqueada em produção)
+│   ├── shortcuts.ts            # F12/DevTools, reload e zoom bloqueados
+│   ├── ipc/handlers.ts         # handlers IPC
+│   └── services/
+│       ├── exif.service.ts     # XMP drone-dji + EXIF → PhotoMetadata
+│       ├── render.service.ts   # SVG + Sharp → foto carimbada / preview
+│       ├── icon-markup.ts      # ícones do carimbo (lucide-static)
+│       ├── files.service.ts    # valida/expande caminhos do Renderer
+│       └── dialog.service.ts   # seletores de arquivo/pasta
+├── preload/                    # contextBridge → window.fotoGeo
+├── renderer/                   # React + Tailwind (editor WYSIWYG)
+│   └── src/
+│       ├── components/         # ImportDropzone, MetadataList, EditorCanvas, ThemeToggle
+│       ├── state/              # usePhotos (lote), useTemplate (carimbo)
+│       └── lib/                # theme, ícones da UI e do carimbo
+└── shared/                     # tipos, IPC, geometria, overlay-svg, formatação (os dois lados)
+assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pendente
 ```
+
+## O que já funciona
+
+1. **Importar** fotos arrastando ou pelos seletores de arquivo/pasta, com a telemetria de cada
+   uma na lista (lat, lon, altitude, data, hora, modelo, direção) e a cobertura do lote.
+   Arquivo corrompido ou sem metadados entra marcado, sem derrubar o resto (RNF-08).
+2. **Ver o carimbo** sobre a foto escolhida, arrastar a seção e mudar a largura dela.
+3. **Conferir a saída** com o botão *Render (Sharp)*: carimba a foto em tamanho real
+   (8064 × 4536 em ~1,1 s) e mostra o resultado no lugar do preview.
+
+O preview **não é um desenho parecido** com a saída: é o mesmo SVG que o Sharp compõe no
+arquivo final (`src/shared/overlay-svg.ts`), só escalado. Fonte, ícones (Lucide), posições e
+formatação vêm de código compartilhado — ver `ARQUITETURA.md §6`.
 
 ## Próximos passos
 
-Ordem de implementação em `ARQUITETURA.md §14`: o passo 1 (esqueleto + IPC) está feito;
-o próximo é `exif.service` + canal `photos:scan` sobre as fotos reais do Lito X1.
+Ordem de implementação em `ARQUITETURA.md §14`: passos 1–4 feitos. O próximo é o passo 5 —
+editor completo: reordenar campos por drag & drop, inspector (fonte, cores, rótulos) e logo
+com posição livre.
