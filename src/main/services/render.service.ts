@@ -13,6 +13,13 @@ import { loadLogoAsset } from './logo.service'
  * compõe sobre a foto. O original nunca é tocado (RF-10) — sempre saída nova.
  */
 
+// No Linux o libvips do sharp divide com a GLib do Electron; várias threads + fotos 36 MP
+// levam a SIGTRAP. No Windows o default do sharp segue normalmente.
+if (process.platform !== 'win32') {
+  sharp.concurrency(1)
+  sharp.cache(false)
+}
+
 const PREVIEW_QUALITY = 82
 
 /**

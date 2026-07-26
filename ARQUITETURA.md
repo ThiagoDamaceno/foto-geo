@@ -476,7 +476,7 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 | Perfil de versão antiga (ou editado à mão) deixar o editor num estado impossível | Validação por propriedade com `zod` na leitura, com os limites do inspector: inválido cai no padrão **e avisa na tela**, ausente cai no padrão em silêncio (§8). JSON corrompido aparece na lista como "(ilegível)" em vez de derrubar a lista. |
 | PNG/BMP sem EXIF de GPS (caso secundário) | Mostrar `present[]` por foto (RF-02); regra p/ ausência (a confirmar) — não é o fluxo principal. |
 | Roboto diferente entre tela e Sharp | Embutir `roboto.ttf` em base64 (`@font-face`) no SVG usado pelo Sharp (§9.1). **Enquanto a fonte não entra**, os dois lados caem na sans-serif do sistema; o `librsvg` resolve fonte por **fontconfig**, então a Roboto embarcada exigirá conf própria no empacotamento. |
-| `sharp` dentro do Electron no Linux | Aviso `[SharpElectronLinux]` + ruído de `GLib-GObject` no terminal do WSL (o binário do libvips convive com a GLib do Electron). Funciona, mas é barulhento; o alvo é Windows, onde não ocorre — `REQUISITOS.md §11.3`. |
+| `sharp` dentro do Electron no Linux | Aviso `[SharpElectronLinux]` + ruído `GLib-GObject`. Em lote paralelo o processo pode **SIGTRAP** (signal 5) e o app some. Mitigação: no Linux o lote roda **1 foto por vez** e `sharp.concurrency(1)`. Alvo é Windows — `REQUISITOS.md §11.3`. |
 | XMP DJI não lido | `exiftool-vendored`. |
 | Módulos nativos no build | `electron-builder` + rebuild; testar `.exe` em Windows real. |
 | Lote grande / memória | `p-limit` teto 4 + um lote por vez (segundo `batch:start` é recusado). |
@@ -570,8 +570,9 @@ Complementa a tabela de riscos (§13); aqui o foco é operacional.
 - **Offline (RNF-01):** CSP bloqueia rede em produção. Não adicionar fetch “só pra telemetria”.
 
 ### Desempenho / empacotamento (passo 8)
-- **Teto de concorrência = 4**, não `núcleos − 1` puro: ~150 MB/foto × N estourou memória em
-  máquina de muitos núcleos. Medir de novo se mudar o pipeline do Sharp.
+- **Teto de concorrência = 4 no Windows**, **1 no Linux/WSL**: no WSL o Electron+Sharp
+  costuma morrer com SIGTRAP se processar várias 36 MP em paralelo. Os `GLib-GObject` no
+  terminal **não** são o crash — o crash é o processo sumir (`Done in …s`).
 - **Ordem no Sharp:** `resize` roda **antes** de `composite` independentemente da ordem das
   chamadas. Compor e reduzir no mesmo pipeline quebra — o `renderPreview` usa dois `sharp()`.
 - **`roboto.ttf` ainda não está no repo:** os dois lados caem na sans-serif do sistema.

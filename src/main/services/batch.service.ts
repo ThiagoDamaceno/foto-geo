@@ -1,7 +1,7 @@
 import { cpus } from 'node:os'
 import { access, mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
-import pLimit from 'p-limit'
+import pLimitImport from 'p-limit'
 import { formatFieldValue } from '@shared/format'
 import type {
   BatchConfig,
@@ -27,6 +27,15 @@ import { renderPhotoToFile } from './render.service'
  *   sai como `.jpg`.
  */
 
+/**
+ * `p-limit` v7 é ESM-only; o Main do electron-vite externaliza com `require()` e entrega
+ * `{ default: fn }` em vez da função. Sem este unwrap: `pLimit is not a function`.
+ */
+const pLimit =
+  typeof pLimitImport === 'function'
+    ? pLimitImport
+    : (pLimitImport as unknown as { default: typeof pLimitImport }).default
+
 /** Sufixo do modo `suffix` (REQUISITOS.md §9.2). */
 const SUFFIX = '_geo'
 
@@ -34,11 +43,12 @@ const SUFFIX = '_geo'
 const OUTPUT_EXTENSION = '.jpg'
 
 /**
- * Teto de imagens simultâneas. `p-limit(núcleos - 1)` é a regra, mas cada composição de
- * 36 MP mantém a imagem inteira em memória (~150 MB): em máquina de 16 núcleos isso passaria
- * de 2 GB. Acima de 4 o ganho já é pequeno — o gargalo vira disco/memória, não CPU (RNF-06).
+ * Teto de imagens simultâneas.
+ * - Windows (produto): até 4 — cada composição 36 MP ~150 MB; acima disso o ganho some (RNF-06).
+ * - Linux/WSL (só dev): **1**. Sharp+Electron no Linux costuma SIGTRAP (signal 5) com várias
+ *   composições em paralelo — o processo some e o `yarn dev` termina com "Done in …s".
  */
-const MAX_CONCURRENCY = 4
+const MAX_CONCURRENCY = process.platform === 'win32' ? 4 : 1
 
 interface RunningJob {
   canceled: boolean
