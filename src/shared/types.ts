@@ -107,6 +107,21 @@ export interface Template {
   logo: LogoConfig
 }
 
+/**
+ * Logo carregada e pronta para o carimbo.
+ *
+ * O Main **sempre converte para PNG** (mesmo quando a origem é SVG): o Chromium e o librsvg
+ * não tratam SVG aninhado do mesmo jeito, e um PNG idêntico nos dois lados mantém o preview
+ * igual à saída (RNF-05). O `Template` guarda só o `filePath` (ARQUITETURA.md §8).
+ */
+export interface LogoAsset {
+  filePath: string
+  /** `data:image/png;base64,…` */
+  dataUrl: string
+  /** largura/altura — define a altura da caixa a partir da largura relativa. */
+  aspectRatio: number
+}
+
 /** Imagem já reduzida para exibição no editor (o original tem ~36 MP). */
 export interface PreviewImage {
   /** `data:image/jpeg;base64,…` */
@@ -138,6 +153,10 @@ export interface FotoGeoApi {
   scanPhotos: (paths: string[]) => Promise<ScanResult>
   /** Versão reduzida da foto para o fundo do editor. */
   getPreviewImage: (filePath: string, maxWidth: number) => Promise<PreviewImage>
+  /** Seletor de logo (PNG/SVG); `null` se o usuário cancelar. */
+  pickLogo: () => Promise<LogoAsset | null>
+  /** Recarrega uma logo já referenciada por um perfil. */
+  readLogo: (filePath: string) => Promise<LogoAsset>
   /** Carimba a foto em tamanho real com o Sharp e devolve o resultado reduzido. */
   renderPreview: (
     photo: PhotoMetadata,

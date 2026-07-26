@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FileWarning, Images, Trash2 } from 'lucide-react'
 import EditorCanvas from './components/EditorCanvas'
 import ImportDropzone from './components/ImportDropzone'
+import InspectorPanel from './components/InspectorPanel'
 import MetadataList from './components/MetadataList'
 import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './lib/theme'
@@ -22,9 +23,33 @@ export default function App(): React.JSX.Element {
     removePhoto,
     clear
   } = usePhotos()
-  const { template, moveSection, resizeSection, reset } = useTemplate()
+  const {
+    template,
+    logoAsset,
+    moveSection,
+    resizeSection,
+    patchSection,
+    reorderFields,
+    patchField,
+    moveLogo,
+    resizeLogo,
+    setLogoOpacity,
+    setLogoAsset,
+    reset
+  } = useTemplate()
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [logoError, setLogoError] = useState<string | null>(null)
+
+  const pickLogo = useCallback(async (): Promise<void> => {
+    setLogoError(null)
+    try {
+      const asset = await window.fotoGeo.pickLogo()
+      if (asset) setLogoAsset(asset)
+    } catch (cause) {
+      setLogoError(cause instanceof Error ? cause.message : String(cause))
+    }
+  }, [setLogoAsset])
 
   /** Foto de referência do editor: a escolhida, ou a primeira com telemetria e tamanho. */
   const selected = useMemo(() => {
@@ -109,14 +134,37 @@ export default function App(): React.JSX.Element {
               </button>
             </div>
 
+            {logoError && (
+              <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                Logo: {logoError}
+              </p>
+            )}
+
             {selected && (
-              <EditorCanvas
-                photo={selected}
-                template={template}
-                onMoveSection={moveSection}
-                onResizeSection={resizeSection}
-                onResetTemplate={reset}
-              />
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                <EditorCanvas
+                  photo={selected}
+                  template={template}
+                  logoAsset={logoAsset}
+                  onMoveSection={moveSection}
+                  onResizeSection={resizeSection}
+                  onMoveLogo={moveLogo}
+                  onResizeLogo={resizeLogo}
+                />
+                <InspectorPanel
+                  template={template}
+                  photo={selected}
+                  logoAsset={logoAsset}
+                  onPatchSection={patchSection}
+                  onReorderFields={reorderFields}
+                  onPatchField={patchField}
+                  onPickLogo={() => void pickLogo()}
+                  onRemoveLogo={() => setLogoAsset(null)}
+                  onResizeLogo={resizeLogo}
+                  onLogoOpacity={setLogoOpacity}
+                  onReset={reset}
+                />
+              </div>
             )}
 
             <MetadataList

@@ -51,8 +51,8 @@ Dois processos, com **separação estrita**: a UI/editor roda no **Renderer (Rea
 | Overlay | **SVG dinâmico** | Texto/ícones escaláveis; base do "espelhamento". |
 | Ícones | **`lucide-react`** (UI) + **`lucide-static`** (SVG p/ o Sharp) | Mesmos ícones nos dois lados → fidelidade. |
 | Fonte | **Roboto** (arquivo `.ttf` local, embarcado) | Offline; embutida em base64 no SVG do render. |
-| Drag & drop (reordenar campos) | **`@dnd-kit`** | Leve, acessível, TS-first. |
-| Drag livre (seção/logo no canvas) | Ponteiro + coords relativas (custom) ou `react-rnd` | Mover/redimensionar sobre o preview. |
+| Drag & drop (reordenar campos) | **`@dnd-kit`** (+ `sortable`, `modifiers`) | Leve, acessível, TS-first. |
+| Drag livre (seção/logo no canvas) | Ponteiro + coords relativas (custom) | `DragBox` no `EditorCanvas`: 40 linhas contra uma dependência a mais, e já trabalha em fração da imagem. |
 | Perfis | **JSON** (`fs` + `JSON.parse/stringify`) | Sem lib extra; suporta listas/aninhamento nativamente. |
 | Concorrência lote | **`p-limit`** | Limita imagens simultâneas. |
 | Empacotar | **`electron-builder`** | NSIS + portátil Windows. |
@@ -79,6 +79,7 @@ foto-geo/
 │   │       ├── files.service.ts       # valida/expande os caminhos vindos do Renderer
 │   │       ├── dialog.service.ts      # seletores de arquivos e de pasta
 │   │       ├── render.service.ts      # template + foto → SVG → Sharp → arquivo/preview
+│   │       ├── logo.service.ts        # logo PNG/SVG → PNG + proporção (RF-06)
 │   │       ├── icon-markup.ts         # ícones Lucide (lucide-static) para o SVG do carimbo
 │   │       ├── batch.service.ts       # lote, progresso, concorrência
 │   │       └── profile.service.ts     # JSON <-> Template (ler/gravar/listar)
@@ -88,18 +89,15 @@ foto-geo/
 │   │   ├── components/
 │   │   │   ├── ImportDropzone.tsx       # drag & drop + seletores (RF-01)
 │   │   │   ├── MetadataList.tsx        # o que cada foto tem + cobertura do lote (RF-02)
-│   │   │   ├── EditorCanvas.tsx        # foto + overlay SVG + alças; botão Render (Sharp)
-│   │   │   ├── SectionElement.tsx      # a seção sobre a imagem
-│   │   │   ├── LogoElement.tsx         # logo livre
-│   │   │   ├── FieldList.tsx           # campos + reordenar (dnd-kit)
-│   │   │   ├── FieldRow.tsx            # ícone + rótulo/valor
-│   │   │   ├── InspectorPanel.tsx      # fonte, tamanho, ícones, posição
-│   │   │   ├── ProfileBar.tsx          # escolher/salvar/duplicar perfil
-│   │   │   ├── ProgressBar.tsx / SummaryPanel.tsx
+│   │   │   ├── EditorCanvas.tsx        # foto + overlay SVG + alças (seção e logo)
+│   │   │   ├── InspectorPanel.tsx      # largura, fonte, espaçamentos, cores, logo
+│   │   │   ├── FieldList.tsx           # campos: reordenar (dnd-kit) e ligar/desligar
+│   │   │   ├── ProfileBar.tsx          # escolher/salvar/duplicar perfil (passo 6)
+│   │   │   ├── ProgressBar.tsx / SummaryPanel.tsx   # lote (passo 7)
 │   │   │   └── ThemeToggle.tsx          # alterna claro ⇄ escuro (RNF-09)
 │   │   ├── state/
 │   │   │   ├── usePhotos.ts            # lote importado
-│   │   │   └── useTemplate.ts          # template em edição (Zustand se crescer — passo 5)
+│   │   │   └── useTemplate.ts          # template em edição + logo carregada
 │   │   ├── lib/theme.ts                # tema: data-theme no <html> + localStorage
 │   │   ├── lib/field-icons.ts          # FieldKey -> componente lucide-react (UI do app)
 │   │   └── lib/icon-markup.ts         # ícones Lucide para o SVG do carimbo (lucide-static)
@@ -117,11 +115,16 @@ foto-geo/
 └── build/                              # ícones do app, config builder (só na fase de empacotamento — §12)
 ```
 
-> **Estado atual (passos 1–4 do §14 concluídos):** esqueleto + IPC, import com leitura de
-> telemetria, geração do carimbo (`shared/overlay-svg` + `render.service`) e o preview fiel no
-> `EditorCanvas`, com a seção já arrastável/redimensionável. Faltam o editor completo
-> (inspector, DnD dos campos, logo), `profile.service` e `batch.service` (passos 5–7).
+> **Estado atual (passos 1–5 do §14 concluídos):** esqueleto + IPC, import com leitura de
+> telemetria, geração do carimbo (`shared/overlay-svg` + `render.service`), preview fiel e o
+> **editor completo** — seção e logo arrastáveis/redimensionáveis, ordem dos campos por DnD e
+> inspector (largura, fonte, espaçamentos, cores, rótulos, visibilidade). Faltam
+> `profile.service` (passo 6) e `batch.service` (passo 7).
 > Instalação/execução: `REQUISITOS.md §11`.
+>
+> `SectionElement`/`LogoElement`/`FieldRow` não viraram arquivos próprios: como a parte visual
+> é o SVG, sobrou uma alça genérica (`DragBox`, dentro do `EditorCanvas`) usada pelos dois
+> elementos, e a linha de campo vive dentro do `FieldList`.
 >
 > **Desvios conscientes** (ambos para reforçar o RNF-05 — uma implementação só para preview e
 > saída, em vez de duas que precisam "combinar"):
@@ -214,7 +217,8 @@ export interface JobResult  { total: number; succeeded: number; skipped: number;
 | `photos:preview` | R→M invoke | ✅ Foto reduzida (data URL) para o fundo do editor — o original tem ~36 MP. |
 | `preview:render` | R→M invoke | ✅ Carimba 1 foto em tamanho real com o Sharp e devolve reduzida + tempo, para conferir a fidelidade. |
 | `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` | R→M invoke | CRUD de perfis `.ini`. |
-| `logo:pick` | R→M invoke | Selecionar PNG/SVG da logo. |
+| `logo:pick` | R→M invoke | ✅ Selecionar PNG/SVG da logo → `LogoAsset` (PNG + proporção). |
+| `logo:read` | R→M invoke | ✅ Recarregar uma logo já referenciada por um perfil (cache por mtime). |
 | `batch:start` / `batch:cancel` | R→M invoke | Rodar/cancelar lote. |
 | `batch:progress` / `batch:done` | M→R send | `JobProgress` / `JobResult`. |
 | `shell:openPath` | R→M invoke | Abrir pasta de saída. |
@@ -243,10 +247,25 @@ por `shared/overlay-svg.ts` no tamanho real da foto e apenas escalado pelo naveg
 
 Camadas de interação por cima do SVG (a parte visual continua sendo o SVG):
 
-- **Alça da seção**: um retângulo transparente na caixa devolvida por `buildOverlaySvg` (`sectionBox`). Arrastar muda `section.{x,y}`; a bolinha do canto muda `widthPct`. ✅ feito.
-- **`FieldList`** para reordenar campos com `@dnd-kit` → reescreve a ordem de `section.fields`. *(passo 5)*
-- **`LogoElement`**: arrastar muda `logo.{x,y}`, alça muda `widthPct`. *(passo 5)*
-- **`InspectorPanel`**: fonte (`fontPct`), cores/opacidade, e por campo: visível, rótulo. *(passo 5)*
+- ✅ **Alças** (`DragBox`): retângulos transparentes nas caixas calculadas pela geometria
+  compartilhada — `sectionBox` do `buildOverlaySvg` e `logoBox()`. Arrastar muda `{x,y}`;
+  a bolinha do canto muda `widthPct`.
+- ✅ **`FieldList`**: reordena os campos com `@dnd-kit` (reescreve a ordem de `section.fields`) e
+  liga/desliga campo, ícone e rótulo. Mostra o valor real da foto atual em cada linha, e avisa
+  quando a foto não tem aquele dado.
+- ✅ **`InspectorPanel`**: largura da seção, fonte, entrelinha, margem interna, cores e
+  opacidade do fundo, além da logo (escolher, largura, opacidade, remover). Cada controle
+  relativo exibe o **px equivalente na foto atual**, que é o número que o usuário enxerga.
+
+**Logo (RF-06):** o `Template` guarda só o `filePath`; quem carrega é o `logo.service`, que
+**converte tudo para PNG** — inclusive SVG. Chromium e librsvg tratam SVG aninhado de formas
+diferentes, então entregar o mesmo PNG aos dois lados mantém o preview igual à saída. Logo
+ilegível não invalida o carimbo: sai sem ela (RNF-08).
+
+> **`section.align` continua só `left`.** Centralizar/alinhar à direita exige saber a largura
+> do texto para posicionar o ícone, e SVG 1.1 não mede texto — precisaria de métricas de fonte
+> nos dois lados, com risco de preview ≠ saída. Fica para a Fase 2; o campo existe no tipo, mas
+> o inspector não o expõe.
 
 **Tema (RNF-09):** `lib/theme.ts` guarda o modo escolhido — **só `claro` ou `escuro`** — em
 `localStorage` e escreve `data-theme` no `<html>`; o Tailwind usa esse atributo como
@@ -434,8 +453,8 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
    (8064 × 4536 em ~1,1 s, EXIF preservado, original intacto).
 4. ✅ `geometry` + `EditorCanvas` → preview fiel validado (§6/§7): mesmo SVG nos dois lados,
    alinhamento exato, seção arrastável e redimensionável.
-5. Editor completo: campos com DnD (`@dnd-kit`), inspector (fonte, cores, rótulos, visibilidade),
-   logo livre.
+5. ✅ Editor completo: campos com DnD (`@dnd-kit`), inspector (largura, fonte, espaçamentos,
+   cores, rótulos, visibilidade) e logo PNG/SVG com posição/tamanho livres.
 6. `profile.service` (JSON + validação Zod) → salvar/carregar/duplicar perfis (N logos).
 7. `batch.service` → lote, progresso, resumo, preservar originais.
 8. `electron-builder` → `.exe` Windows e teste em máquina real.

@@ -1,6 +1,8 @@
 import { dialog, type BrowserWindow } from 'electron'
 import { IMAGE_EXTENSIONS } from '@shared/image-formats'
+import type { LogoAsset } from '@shared/types'
 import { listImagesInFolder } from './files.service'
+import { loadLogoAsset, LOGO_EXTENSIONS } from './logo.service'
 
 /** Extensões sem o ponto, como o `dialog` espera. */
 const FILTER_EXTENSIONS = IMAGE_EXTENSIONS.map((extension) => extension.slice(1))
@@ -29,6 +31,18 @@ export async function pickFolder(parent: BrowserWindow | null): Promise<string[]
   })
 
   return folder ? listImagesInFolder(folder) : []
+}
+
+/** Seletor da logo (RF-06). Devolve `null` quando o usuário cancela. */
+export async function pickLogo(parent: BrowserWindow | null): Promise<LogoAsset | null> {
+  const [file] = await showOpen(parent, {
+    title: 'Selecionar logo',
+    buttonLabel: 'Usar',
+    properties: ['openFile'],
+    filters: [{ name: 'Logo (PNG/SVG)', extensions: LOGO_EXTENSIONS.map((e) => e.slice(1)) }]
+  })
+
+  return file ? loadLogoAsset(file) : null
 }
 
 interface OpenOptions {

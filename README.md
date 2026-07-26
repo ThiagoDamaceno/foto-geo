@@ -81,13 +81,15 @@ src/
 │   └── services/
 │       ├── exif.service.ts     # XMP drone-dji + EXIF → PhotoMetadata
 │       ├── render.service.ts   # SVG + Sharp → foto carimbada / preview
+│       ├── logo.service.ts     # logo PNG/SVG → PNG + proporção
 │       ├── icon-markup.ts      # ícones do carimbo (lucide-static)
 │       ├── files.service.ts    # valida/expande caminhos do Renderer
 │       └── dialog.service.ts   # seletores de arquivo/pasta
 ├── preload/                    # contextBridge → window.fotoGeo
 ├── renderer/                   # React + Tailwind (editor WYSIWYG)
 │   └── src/
-│       ├── components/         # ImportDropzone, MetadataList, EditorCanvas, ThemeToggle
+│       ├── components/         # ImportDropzone, MetadataList, EditorCanvas,
+│       │                       # InspectorPanel, FieldList, ThemeToggle
 │       ├── state/              # usePhotos (lote), useTemplate (carimbo)
 │       └── lib/                # theme, ícones da UI e do carimbo
 └── shared/                     # tipos, IPC, geometria, overlay-svg, formatação (os dois lados)
@@ -99,8 +101,11 @@ assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pend
 1. **Importar** fotos arrastando ou pelos seletores de arquivo/pasta, com a telemetria de cada
    uma na lista (lat, lon, altitude, data, hora, modelo, direção) e a cobertura do lote.
    Arquivo corrompido ou sem metadados entra marcado, sem derrubar o resto (RNF-08).
-2. **Ver o carimbo** sobre a foto escolhida, arrastar a seção e mudar a largura dela.
-3. **Conferir a saída** com o botão *Render (Sharp)*: carimba a foto em tamanho real
+2. **Montar o carimbo** sobre a foto escolhida: arrastar a seção, mudar largura, fonte,
+   entrelinha, margem e cores, reordenar os campos arrastando, e ligar/desligar campo, ícone
+   e rótulo um por um.
+3. **Posicionar uma logo** (PNG ou SVG) livremente sobre a foto, com largura e opacidade.
+4. **Conferir a saída** com o botão *Conferir render (Sharp)*: carimba a foto em tamanho real
    (8064 × 4536 em ~1,1 s) e mostra o resultado no lugar do preview.
 
 O preview **não é um desenho parecido** com a saída: é o mesmo SVG que o Sharp compõe no
@@ -109,6 +114,6 @@ formatação vêm de código compartilhado — ver `ARQUITETURA.md §6`.
 
 ## Próximos passos
 
-Ordem de implementação em `ARQUITETURA.md §14`: passos 1–4 feitos. O próximo é o passo 5 —
-editor completo: reordenar campos por drag & drop, inspector (fonte, cores, rótulos) e logo
-com posição livre.
+Ordem de implementação em `ARQUITETURA.md §14`: passos 1–5 feitos. O próximo é o passo 6 —
+perfis em JSON (`profile.service`): salvar, carregar e duplicar N perfis, cada um com sua logo.
+Depois vem o lote (passo 7).

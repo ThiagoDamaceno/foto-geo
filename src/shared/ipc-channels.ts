@@ -6,5 +6,7 @@ export const IPC = {
   pickFolder: 'dialog:pickFolder',
   scanPhotos: 'photos:scan',
   previewImage: 'photos:preview',
-  renderPreview: 'preview:render'
+  renderPreview: 'preview:render',
+  pickLogo: 'logo:pick',
+  readLogo: 'logo:read'
 } as const

@@ -77,13 +77,20 @@ Extraídos dos metadados (EXIF/XMP) no momento do **import**. As colunas de orig
 
 Ajustáveis pelo usuário:
 - **Local/posição** da seção na imagem — **livre** (arrastar para qualquer ponto).
-- **Tamanho da fonte** (fonte **Roboto**).
-- **Tamanho da seção** (largura/escala do bloco).
+- **Tamanho da fonte** (fonte **Roboto**), **entrelinha** e **margem interna**.
+- **Tamanho da seção** (largura do bloco; a altura vem do conteúdo).
+- **Cores**: fundo (com opacidade) e texto.
+- Por campo: **carimbar ou não**, **mostrar ícone** e **mostrar rótulo**.
 - Ícone de cada campo é **fixo** (não configurável no MVP — ver §3).
+- **Alinhamento do texto** (centro/direita) fica para a Fase 2: posicionar o ícone junto de
+  texto centralizado exige medir a largura do texto, o que SVG não faz — e o jeito errado de
+  resolver quebraria a fidelidade preview↔saída (RNF-05).
 
 ### RF-06 — Logo (posicionamento livre)
 - Importar uma logo em **PNG ou SVG**.
-- **Arrastar livremente** para qualquer posição sobre a imagem (posição/tamanho livres).
+- **Arrastar livremente** para qualquer posição sobre a imagem (posição/tamanho livres), com
+  opacidade ajustável.
+- SVG é convertido para PNG na importação (mesma imagem no preview e na saída — `ARQUITETURA.md §6`).
 - *(A marca em si — ENDEGRO vs Quartz — segue em aberto, mas a mecânica é: usuário fornece o arquivo.)*
 
 ### RF-07 — Perfis e persistência em JSON
@@ -185,11 +192,11 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 
 ## 11. Requisitos de instalação (ambiente de desenvolvimento)
 
-Estado atual do repo (`ARQUITETURA.md §14`, passos 1–4): **import com leitura de telemetria
-(RF-01/RF-02), carimbo gerado pelo Sharp em tamanho real e preview fiel (RF-03/RF-08), com a
-seção arrastável e redimensionável (parte do RF-05)**. Faltam ordem dos campos por DnD (RF-04),
-inspector, logo (RF-06), perfis (RF-07) e lote (RF-09). Empacotamento ainda **não** está
-configurado — ver §11.6.
+Estado atual do repo (`ARQUITETURA.md §14`, passos 1–5): **import com leitura de telemetria
+(RF-01/RF-02), carimbo gerado pelo Sharp em tamanho real, preview fiel (RF-03/RF-08) e editor
+completo — ordem dos campos por DnD (RF-04), seção/fonte/cores no inspector (RF-05) e logo com
+posição livre (RF-06)**. Faltam perfis em JSON (RF-07) e a aplicação em lote (RF-09).
+Empacotamento ainda **não** está configurado — ver §11.6.
 
 ### 11.1 Pré-requisitos
 
@@ -273,6 +280,7 @@ Linux, ou rodando o app no Windows. O import por **botão/seletor** cobre o rest
 | `exiftool-vendored` | **instalado** (leitura de EXIF/XMP) | Vem com binários por plataforma; no Linux precisa do perl do sistema (§11.3). |
 | `sharp` | **instalado** (render do carimbo) | libvips com binário por plataforma (`@img/sharp-linux-x64` aqui, `win32-x64` no `.exe`). |
 | `lucide-static` | **instalado** | SVG cru dos ícones do carimbo (sem binário). |
+| `@dnd-kit/*` | **instalado** | Reordenar campos (`core`, `sortable`, `modifiers`, `utilities`) — sem binário. |
 
 Binários instalados no WSL/Linux valem só para desenvolvimento — o `.exe` final exige os
 binários **win-x64**, baixados/reconstruídos no Windows na etapa de empacotamento.

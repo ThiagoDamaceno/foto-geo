@@ -4,6 +4,7 @@ import { IPC } from '@shared/ipc-channels'
 import type {
   AppInfo,
   FotoGeoApi,
+  LogoAsset,
   PreviewImage,
   RenderedPreview,
   ScanResult
@@ -19,7 +20,9 @@ const api: FotoGeoApi = {
   getPreviewImage: (filePath, maxWidth) =>
     ipcRenderer.invoke(IPC.previewImage, filePath, maxWidth) as Promise<PreviewImage>,
   renderPreview: (photo, template, maxWidth) =>
-    ipcRenderer.invoke(IPC.renderPreview, photo, template, maxWidth) as Promise<RenderedPreview>
+    ipcRenderer.invoke(IPC.renderPreview, photo, template, maxWidth) as Promise<RenderedPreview>,
+  pickLogo: () => ipcRenderer.invoke(IPC.pickLogo) as Promise<LogoAsset | null>,
+  readLogo: (filePath) => ipcRenderer.invoke(IPC.readLogo, filePath) as Promise<LogoAsset>
 }
 
 if (process.contextIsolated) {

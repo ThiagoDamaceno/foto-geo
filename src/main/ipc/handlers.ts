@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { AppInfo, ScanResult } from '@shared/types'
 import type { PhotoMetadata, Template } from '@shared/types'
-import { pickFolder, pickImages } from '../services/dialog.service'
+import { pickFolder, pickImages, pickLogo } from '../services/dialog.service'
+import { loadLogoAsset } from '../services/logo.service'
 import { collectImagePaths } from '../services/files.service'
 import { scanPhotos } from '../services/exif.service'
 import { getPreviewImage, renderPreview } from '../services/render.service'
@@ -46,6 +47,9 @@ export function registerIpcHandlers(): void {
       return renderPreview(photo, template, clampWidth(maxWidth))
     }
   )
+
+  ipcMain.handle(IPC.pickLogo, (event) => pickLogo(windowOf(event)))
+  ipcMain.handle(IPC.readLogo, (_event, filePath: string) => loadLogoAsset(filePath))
 }
 
 /** Caminho vindo do Renderer passa pela mesma validação do import (ARQUITETURA.md §11). */

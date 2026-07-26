@@ -6,6 +6,7 @@ import { buildOverlaySvg } from '@shared/overlay-svg'
 import type { Size } from '@shared/geometry'
 import type { PhotoMetadata, PreviewImage, RenderedPreview, Template } from '@shared/types'
 import { ICON_MARKUP } from './icon-markup'
+import { loadLogoAsset } from './logo.service'
 
 /**
  * Render do carimbo (ARQUITETURA.md §10): o SVG vem do gerador compartilhado e o Sharp só
@@ -100,12 +101,9 @@ export async function renderPhotoToFile(
     .toFile(outputPath)
 }
 
-async function buildSvg(
-  photo: PhotoMetadata,
-  template: Template,
-  size: Size
-): Promise<string> {
+async function buildSvg(photo: PhotoMetadata, template: Template, size: Size): Promise<string> {
   const fontDataUrl = await loadFontDataUrl()
+  const logo = await loadLogo(template)
 
   return buildOverlaySvg({
     size,
@@ -113,8 +111,20 @@ async function buildSvg(
     // o carimbo é desenhado sobre a imagem já rotacionada
     photo: { ...photo, width: size.width, height: size.height },
     icons: ICON_MARKUP,
-    ...(fontDataUrl ? { fontDataUrl } : {})
+    ...(fontDataUrl ? { fontDataUrl } : {}),
+    ...(logo ? { logoDataUrl: logo.dataUrl, logoAspectRatio: logo.aspectRatio } : {})
   }).svg
+}
+
+/** Logo faltando/ilegível não invalida o carimbo — só sai sem ela (RNF-08). */
+async function loadLogo(template: Template): Promise<{ dataUrl: string; aspectRatio: number } | null> {
+  if (!template.logo.filePath) return null
+
+  try {
+    return await loadLogoAsset(template.logo.filePath)
+  } catch {
+    return null
+  }
 }
 
 /**
