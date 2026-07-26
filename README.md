@@ -112,8 +112,8 @@ assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pend
    entrelinha, margem e cores, reordenar os campos arrastando, e ligar/desligar campo, ícone
    e rótulo um por um.
 3. **Posicionar uma logo** (PNG ou SVG) livremente sobre a foto, com largura e opacidade.
-4. **Conferir a saída** com o botão *Conferir render (Sharp)*: carimba a foto em tamanho real
-   (8064 × 4536 em ~1,1 s) e mostra o resultado no lugar do preview.
+4. **Visualizar a saída** com o botão *Visualizar*: carimba a foto em tamanho real
+   (8064 × 4536 em ~1,1 s) e mostra o resultado; *Editar* (lápis) volta às alças.
 5. **Guardar em perfis** (`.json` em `%APPDATA%/foto-geo/profiles`): salvar, abrir, duplicar e
    excluir quantos perfis quiser — um por cliente/obra, cada um com sua logo. A barra avisa
    quando há *alterações não salvas*; perfil de versão antiga abre com o que é válido e diz o

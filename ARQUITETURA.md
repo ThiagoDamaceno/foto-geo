@@ -167,6 +167,7 @@ export interface SectionConfig {
   fontPct: number;         // altura da fonte / largura da imagem
   lineGapPct: number;      // espaçamento entre linhas
   paddingPct: number;
+  radiusPct: number;       // raio dos cantos do card / largura da imagem (0 = reto)
   bgColor: string;         // ex. "#000000"
   bgOpacity: number;       // 0..1
   textColor: string;
@@ -261,7 +262,7 @@ por `shared/overlay-svg.ts` no tamanho real da foto e apenas escalado pelo naveg
 > layout é literalmente o mesmo objeto; sobra apenas a diferença de rasterização.
 > Medido nas fotos do Lito X1: **melhor alinhamento em dx=0, dy=0** (sem deslocamento) e, com
 > um blur leve para tirar o anti-aliasing, diferença média de **2,8/255** — abaixo da diferença
-> da própria foto reescalada pelos dois motores (4,9/255). O botão **Render (Sharp)** no editor
+> da própria foto reescalada pelos dois motores (4,9/255). O botão **Visualizar** no editor
 > troca o preview pelo arquivo real a qualquer momento para reconferir.
 
 Camadas de interação por cima do SVG (a parte visual continua sendo o SVG):
@@ -306,7 +307,7 @@ crescer). Toda mudança regenera o SVG e o preview atualiza na hora.
 Problema: fotos têm resoluções diferentes; o preview tem outra escala ainda. Solução: **tudo relativo à largura da imagem**.
 
 - Posições `x,y` ∈ [0,1] (fração da largura/altura).
-- Tamanhos (`widthPct`, `fontPct`, `paddingPct`, `lineGapPct`) = fração da **largura** da imagem.
+- Tamanhos (`widthPct`, `fontPct`, `paddingPct`, `lineGapPct`, `radiusPct`) = fração da **largura** da imagem.
 - No **preview**: `pxPreview = pct * larguraPreview`.
 - No **Main/Sharp**: `pxReal = pct * larguraReal`.
 
@@ -335,6 +336,7 @@ N perfis = **um arquivo `.json` por perfil**, e a logo é **referenciada por cam
     "fontPct": 0.020,
     "lineGapPct": 0.010,
     "paddingPct": 0.012,
+    "radiusPct": 0.005,
     "bgColor": "#000000", "bgOpacity": 0.55,
     "textColor": "#FFFFFF",
     "align": "left",
@@ -580,8 +582,9 @@ Complementa a tabela de riscos (§13); aqui o foco é operacional.
   — no `.exe` pode ser preciso `FONTCONFIG_FILE` apontando para `assets/fonts/`.
 - **Binários nativos:** `sharp` e `exiftool-vendored` precisam dos builds **win-x64** no
   empacotamento; o `node_modules` do WSL **não** serve no Windows (e o inverso também).
-- **WSL ≠ produto:** DnD do Explorer não chega no WSLg; GPU desligada no Linux; ruído
-  `[SharpElectronLinux]` / `GLib-GObject` é esperado. Validar DnD e o `.exe` no Windows.
+- **WSL ≠ produto:** DnD do Explorer não chega no WSLg; GPU desligada no Linux. O spam
+  `GLib-GObject` / `SharpElectronLinux` é conflito Electron↔sharp (sem fix no app); o
+  `yarn dev` filtra no Linux (`scripts/dev.mjs`). Validar DnD e o `.exe` no Windows.
 - **Harnesses Electron no Cursor/WSL:** a sessão injeta `ELECTRON_RUN_AS_NODE=1` — scripts
   descartáveis precisam de `env -u ELECTRON_RUN_AS_NODE electron --no-sandbox …`. Não
   versionar esses probes.

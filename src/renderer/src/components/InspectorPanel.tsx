@@ -98,6 +98,15 @@ export default function InspectorPanel({
           hint={px(section.paddingPct)}
           onChange={(paddingPct) => onPatchSection({ paddingPct })}
         />
+        <Slider
+          label="Cantos arredondados"
+          value={section.radiusPct}
+          min={0}
+          max={0.04}
+          step={0.0005}
+          hint={section.radiusPct === 0 ? 'reto' : px(section.radiusPct)}
+          onChange={(radiusPct) => onPatchSection({ radiusPct })}
+        />
       </Group>
 
       <Group title="Cores">

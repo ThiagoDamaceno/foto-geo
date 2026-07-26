@@ -259,11 +259,13 @@ O WSL não expõe GPU utilizável ao Chromium; o Main já **desliga a aceleraç�
 quando `process.platform === 'linux'`**, então a renderização é por software (suficiente
 para o editor) e o log fica limpo. Em Windows a aceleração continua ligada.
 
-**Ruído esperado no WSL:** ao usar o `sharp` dentro do Electron em Linux aparecem o aviso
-`[SharpElectronLinux] Binaries provided by Electron … may be incompatible with sharp` e várias
-linhas `GLib-GObject: g_object_ref: assertion 'G_IS_OBJECT (object)' failed`. O render funciona
-(verificado nas 13 fotos da amostra) — é conflito de GLib entre o libvips e o Electron, e não
-acontece no Windows, que é o alvo. Ignore essas linhas ao ler o log.
+**Ruído esperado no WSL:** o Electron no Linux vincula a GLib do sistema e vaza os símbolos
+para o processo; o `sharp` traz outra cópia via libvips — conflito documentado pelo sharp
+([Electron and Linux](https://sharp.pixelplumbing.com/install/#electron-and-linux),
+[electron#46323](https://github.com/electron/electron/issues/46323)). Resultado: aviso
+`[SharpElectronLinux]` e dezenas de `GLib-GObject: g_object_ref/unref …`. O render funciona;
+**não tem correção no app** — só some no Windows (alvo). O `yarn dev` filtra essas linhas no
+stderr em Linux (`scripts/dev.mjs`); use `yarn dev:raw` se quiser ver o log completo.
 
 ### 11.4 Fotos de teste no WSL (arquivos que estão no Windows)
 

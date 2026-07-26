@@ -7,8 +7,9 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "dev": "electron-vite dev",
-    "dev:watch": "electron-vite dev --watch",
+    "dev": "node scripts/dev.mjs dev",
+    "dev:watch": "node scripts/dev.mjs dev --watch",
+    "dev:raw": "electron-vite dev",
     "typecheck": "yarn typecheck:node && yarn typecheck:web",
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "typecheck:web": "tsc -p tsconfig.web.json --noEmit"

@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Image as ImageIcon, Loader2, Move, Timer } from 'lucide-react'
+import { Eye, Loader2, Move, Pencil, Timer } from 'lucide-react'
 import { logoBox, type Box } from '@shared/geometry'
 import { buildOverlaySvg, svgToDataUri } from '@shared/overlay-svg'
 import type { LogoAsset, PhotoMetadata, PreviewImage, RenderedPreview, Template } from '@shared/types'
 import { ICON_MARKUP } from '../lib/icon-markup'
 
-type Mode = 'preview' | 'sharp'
+/** `edit` = overlay + alças · `view` = foto já carimbada (saída real). */
+type Mode = 'edit' | 'view'
 type Handle = 'section-move' | 'section-resize' | 'logo-move' | 'logo-resize'
 
 /**
  * Preview do carimbo sobre a foto real (RF-08).
  *
- * O overlay é **o mesmo SVG** que o Sharp compõe na saída — gerado em `shared/overlay-svg.ts`
- * no tamanho real da foto e só escalado pelo navegador. É o que garante preview = arquivo
- * (RNF-05); o botão "Render (Sharp)" existe para conferir isso a qualquer momento.
+ * O overlay é **o mesmo SVG** da saída — gerado em `shared/overlay-svg.ts` no tamanho real
+ * da foto e só escalado pelo navegador (RNF-05). "Visualizar" carimba de verdade para
+ * conferir; "Editar" volta às alças sem precisar mexer no inspector.
  */
 export default function EditorCanvas({
   photo,
@@ -34,7 +35,7 @@ export default function EditorCanvas({
 }): React.JSX.Element {
   const [preview, setPreview] = useState<PreviewImage | null>(null)
   const [rendered, setRendered] = useState<RenderedPreview | null>(null)
-  const [mode, setMode] = useState<Mode>('preview')
+  const [mode, setMode] = useState<Mode>('edit')
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
@@ -43,7 +44,7 @@ export default function EditorCanvas({
     let active = true
     setPreview(null)
     setRendered(null)
-    setMode('preview')
+    setMode('edit')
     setError(null)
     setIsBusy(true)
 
@@ -63,10 +64,10 @@ export default function EditorCanvas({
     }
   }, [photo.filePath])
 
-  // qualquer mudança no template invalida o render do Sharp que estava na tela
+  // mudança no template invalida a visualização já gerada
   useEffect(() => {
     setRendered(null)
-    setMode('preview')
+    setMode('edit')
   }, [template])
 
   // o carimbo é gerado no tamanho REAL da foto; o navegador só escala o SVG
@@ -85,19 +86,23 @@ export default function EditorCanvas({
     })
   }, [photo, template, logoAsset])
 
-  const runSharpRender = useCallback(async (): Promise<void> => {
+  const showView = useCallback(async (): Promise<void> => {
     setIsBusy(true)
     setError(null)
     try {
       const result = await window.fotoGeo.renderPreview(photo, template, 1400)
       setRendered(result)
-      setMode('sharp')
+      setMode('view')
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
       setIsBusy(false)
     }
   }, [photo, template])
+
+  const showEdit = useCallback((): void => {
+    setMode('edit')
+  }, [])
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>, handle: Handle): void => {
@@ -142,7 +147,7 @@ export default function EditorCanvas({
     [onMoveSection, onResizeSection, onMoveLogo, onResizeLogo, template.logo, template.section]
   )
 
-  const image = mode === 'sharp' ? rendered : preview
+  const image = mode === 'view' ? rendered : preview
   const size = { width: photo.width, height: photo.height }
   const sectionStyle = overlay && photo.width > 0 ? toPercent(overlay.sectionBox, size) : null
   const logoStyle =
@@ -165,7 +170,7 @@ export default function EditorCanvas({
         </div>
 
         <div className="flex items-center gap-2">
-          {rendered && (
+          {mode === 'view' && rendered && (
             <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
               <Timer className="size-3.5" aria-hidden />
               {rendered.elapsedMs.toFixed(0)} ms
@@ -173,17 +178,27 @@ export default function EditorCanvas({
           )}
           <button
             type="button"
-            onClick={() => void runSharpRender()}
-            disabled={isBusy || mode === 'sharp'}
-            title="Carimba em tamanho real com o Sharp para conferir a fidelidade"
+            onClick={() => void showView()}
+            disabled={isBusy || mode === 'view'}
+            title="Gera a saída real e mostra o resultado (sem alças de edição)"
             className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             {isBusy ? (
               <Loader2 className="size-3.5 animate-spin" aria-hidden />
             ) : (
-              <ImageIcon className="size-3.5" aria-hidden />
+              <Eye className="size-3.5" aria-hidden />
             )}
-            {mode === 'sharp' ? 'Render do Sharp' : 'Conferir render (Sharp)'}
+            Visualizar
+          </button>
+          <button
+            type="button"
+            onClick={showEdit}
+            disabled={isBusy || mode === 'edit'}
+            title="Volta ao modo edição — overlay e alças para posicionar o carimbo"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <Pencil className="size-3.5" aria-hidden />
+            Editar
           </button>
         </div>
       </div>
@@ -206,8 +221,8 @@ export default function EditorCanvas({
               draggable={false}
             />
 
-            {/* No modo Sharp a imagem JÁ tem o carimbo — nada de sobrepor de novo. */}
-            {mode === 'preview' && overlay && (
+            {/* No modo visualização a imagem JÁ tem o carimbo — nada de sobrepor de novo. */}
+            {mode === 'edit' && overlay && (
               <img
                 src={svgToDataUri(overlay.svg)}
                 alt=""
@@ -216,7 +231,7 @@ export default function EditorCanvas({
               />
             )}
 
-            {mode === 'preview' && sectionStyle && (
+            {mode === 'edit' && sectionStyle && (
               <DragBox
                 style={sectionStyle}
                 label="Seção de dados"
@@ -225,7 +240,7 @@ export default function EditorCanvas({
               />
             )}
 
-            {mode === 'preview' && logoStyle && (
+            {mode === 'edit' && logoStyle && (
               <DragBox
                 style={logoStyle}
                 label="Logo"

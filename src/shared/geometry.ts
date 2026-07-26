@@ -70,6 +70,8 @@ export function sectionMetrics(
 
   const x = section.x * size.width
   const y = section.y * size.height
+  // SVG arredonda além de metade do lado menor — limita para o slider não "estourar" o card
+  const radius = Math.min(pctToPx(section.radiusPct, size.width), width / 2, height / 2)
 
   return {
     x,
@@ -84,7 +86,7 @@ export function sectionMetrics(
     iconGap,
     contentX: x + padding,
     contentY: y + padding,
-    radius: fontSize * 0.35
+    radius
   }
 }
 

@@ -19,6 +19,8 @@ export const DEFAULT_TEMPLATE: Template = {
     fontPct: 0.014,
     lineGapPct: 0.005,
     paddingPct: 0.01,
+    /** Equivalente ao antigo `fontSize * 0.35` do geometry. */
+    radiusPct: 0.005,
     bgColor: '#000000',
     bgOpacity: 0.55,
     textColor: '#FFFFFF',

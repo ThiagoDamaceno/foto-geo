@@ -83,6 +83,8 @@ export interface SectionConfig {
   fontPct: number
   lineGapPct: number
   paddingPct: number
+  /** Raio dos cantos do card / largura da imagem (0 = retângulo). */
+  radiusPct: number
   bgColor: string
   bgOpacity: number
   textColor: string
