@@ -1,6 +1,35 @@
 {
-  "name": "drone",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT"
+  "name": "foto-geo",
+  "version": "0.1.0",
+  "description": "Editor de carimbo de telemetria para fotos de drone (offline)",
+  "main": "./out/main/index.js",
+  "author": "BRTK",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "dev:watch": "electron-vite dev --watch",
+    "typecheck": "yarn typecheck:node && yarn typecheck:web",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "lucide-react": "^0.545.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.16",
+    "@types/node": "^24.9.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.1.0",
+    "electron": "^39.2.7",
+    "electron-vite": "^4.0.1",
+    "tailwindcss": "^4.1.16",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
 }

@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+/* Tema controlado pelo app (claro/escuro/sistema) via `data-theme` no <html> —
+   ver `lib/theme.ts`. Substitui o `prefers-color-scheme` padrão do Tailwind. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Fonte embarcada (offline) — ARQUITETURA.md §9.1.
+   Descomentar quando assets/fonts/roboto.ttf entrar no repo.
+@font-face {
+  font-family: 'Roboto';
+  src: url('../../../../assets/fonts/roboto.ttf') format('truetype');
+  font-display: block;
+}
+*/
+
+@theme {
+  --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    /* color-scheme também acerta scrollbars e controles nativos. */
+    color-scheme: light;
+    background-color: var(--color-slate-100);
+  }
+
+  html[data-theme='dark'] {
+    color-scheme: dark;
+    background-color: var(--color-slate-950);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    /* Desktop: sem seleção de texto acidental nem arrastar-solta do navegador. */
+    user-select: none;
+    overflow: hidden;
+  }
+}

@@ -1,7 +1,8 @@
 # Arquitetura Base — Foto Geo (Electron + React + TS + Tailwind + Vite)
 
-> **Documento de arquitetura — v2.** Complementa `REQUISITOS.md`.
-> App **desktop Windows offline**: editor visual de template de telemetria + aplicação em lote, com perfis em `.ini`.
+> **Documento de arquitetura — v3.** Complementa `REQUISITOS.md`.
+> App **desktop Windows offline**: editor visual de template de telemetria + aplicação em lote, com perfis em `.json`.
+> Ajustado à **amostra real** (13 fotos JPG do DJI Lito X1, `8064×4536`, EXIF + XMP `drone-dji`) — ver `REQUISITOS §8`.
 
 ---
 
@@ -45,7 +46,7 @@ Dois processos, com **separação estrita**: a UI/editor roda no **Renderer (Rea
 | UI | **React + TypeScript** | Requisito. |
 | Estilo | **Tailwind CSS** | Requisito; agiliza o layout do editor. |
 | Dev/build | **electron-vite** + **Vite** | Template Electron+React+TS pronto, HMR. |
-| EXIF/XMP | **`exiftool-vendored`** | Lê XMP DJI (altitude/yaw); binário offline. |
+| EXIF/XMP | **`exiftool-vendored`** | Lê o namespace **XMP `drone-dji`** (GPS decimal, Absolute/RelativeAltitude, GimbalYaw, ProductName) **e** o EXIF (GPS DMS, GPSAltitude, DateTime); binário offline. |
 | Render imagem | **`sharp`** (libvips) | Composição rápida em lote; SVG→imagem. |
 | Overlay | **SVG dinâmico** | Texto/ícones escaláveis; base do "espelhamento". |
 | Ícones | **`lucide-react`** (UI) + **`lucide-static`** (SVG p/ o Sharp) | Mesmos ícones nos dois lados → fidelidade. |
@@ -65,13 +66,15 @@ Dois processos, com **separação estrita**: a UI/editor roda no **Renderer (Rea
 ```
 foto-geo/
 ├── electron.vite.config.ts
-├── package.json / tsconfig.json / tailwind.config.js
+├── package.json / tsconfig.json (+ tsconfig.node.json, tsconfig.web.json)
 ├── src/
 │   ├── main/
 │   │   ├── index.ts
+│   │   ├── security.ts                # CSP (rede bloqueada em produção — §11)
+│   │   ├── shortcuts.ts               # bloqueio de F12/DevTools, reload e zoom (RNF-10)
 │   │   ├── ipc/handlers.ts
 │   │   └── services/
-│   │       ├── exif.service.ts        # EXIF/XMP → PhotoMetadata
+│   │       ├── exif.service.ts        # XMP drone-dji (prioridade) + EXIF (fallback) → PhotoMetadata
 │   │       ├── render.service.ts      # template + foto → SVG → Sharp → arquivo
 │   │       ├── overlay-svg.ts         # gera o SVG (seção + ícones + logo)
 │   │       ├── batch.service.ts       # lote, progresso, concorrência
@@ -91,16 +94,23 @@ foto-geo/
 │   │   │   ├── InspectorPanel.tsx      # fonte, tamanho, ícones, posição
 │   │   │   ├── ProfileBar.tsx          # escolher/salvar/duplicar perfil
 │   │   │   ├── ProgressBar.tsx / SummaryPanel.tsx
+│   │   │   └── ThemeToggle.tsx          # alterna claro ⇄ escuro (RNF-09)
 │   │   ├── state/                      # store do template (Zustand ou Context)
+│   │   ├── lib/theme.ts                # tema: data-theme no <html> + localStorage
 │   │   └── lib/geometry.ts            # coords relativas <-> px (mesmo cálculo do Main)
 │   └── shared/
 │       ├── types.ts                    # Template, PhotoMetadata, etc.
+│       ├── ipc-channels.ts             # nomes dos canais IPC (§5)
 │       ├── field-icons.ts             # mapa fixo FieldKey -> nome do ícone Lucide
 │       └── template-defaults.ts        # perfil padrão
 ├── assets/fonts/roboto.ttf             # fonte embarcada (offline)
 ├── profiles/                           # perfis .json + logos do usuário
-└── build/                              # ícones do app, config builder
+└── build/                              # ícones do app, config builder (só na fase de empacotamento — §12)
 ```
+
+> **Estado atual:** existem `main/{index,security,ipc/handlers}`, `preload/`, `renderer/` e
+> `shared/{types,ipc-channels}`; os serviços (`exif`, `render`, `batch`, `profile`) e os
+> componentes do editor entram nos passos 2–7 do §14. Instalação/execução: `REQUISITOS.md §11`.
 
 ---
 
@@ -156,9 +166,14 @@ Outros tipos:
 ```ts
 export interface PhotoMetadata {
   filePath: string; fileName: string;
-  width: number; height: number;
-  latitude?: number; longitude?: number; altitude?: number;
-  dateTimeOriginal?: string; direction?: number; droneModel?: string;
+  width: number; height: number;                 // ex. 8064 x 4536
+  latitude?: number; longitude?: number;          // graus DECIMAIS com sinal (S/W negativos)
+  absoluteAltitude?: number;                      // GPSAltitude / drone-dji:AbsoluteAltitude (m) — carimbo padrão
+  relativeAltitude?: number;                      // drone-dji:RelativeAltitude (m, à decolagem) — opcional
+  dateTimeOriginal?: string;                      // ISO; origem EXIF DateTimeOriginal ou XMP CreateDate
+  direction?: number;                             // drone-dji:GimbalYawDegree normalizado 0..360
+  droneModel?: string;                            // drone-dji:ProductName ("Lito X1"), NÃO o Model do sensor
+  photoNumber?: string;                           // nº sequencial do nome do arquivo (…_NNNN_…)
   present: FieldKey[];      // o que existe nesta foto (RF-02)
 }
 
@@ -196,6 +211,11 @@ API no preload: `window.fotoGeo = { pickImages, scanPhotos, renderPreview, listP
 - **`FieldList`** dentro da seção: cada campo é uma linha (`FieldRow`) com ícone + valor **real** da foto atual. **Reordenar com `@dnd-kit`** → reescreve a ordem do array `section.fields`.
 - **`LogoElement`**: livre; arrastar muda `logo.{x,y}`, alça muda `widthPct`.
 - **`InspectorPanel`**: controles de fonte (`fontPct`), tamanho da seção, cores/opacidade, e por campo: visível, `iconId` (via `IconPicker`), rótulo.
+
+**Tema (RNF-09):** `lib/theme.ts` guarda o modo escolhido — **só `claro` ou `escuro`** — em
+`localStorage` e escreve `data-theme` no `<html>`; o Tailwind usa esse atributo como
+variante `dark:` (`@custom-variant` em `assets/main.css`). Nenhum componente do editor deve
+fixar cor sem a variante escura. O **carimbo** não é afetado — suas cores vêm do `Template`.
 
 Estado do template num store (Zustand recomendado). Toda mudança atualiza o preview instantaneamente. **O preview usa exatamente os mesmos números relativos** que o Main usará ao gerar — é isso que garante a fidelidade (RNF-05).
 
@@ -279,8 +299,9 @@ Como os dois lados usam a **mesma origem de ícones (Lucide)**, o preview bate c
 ```
 foto + Template
    │
-   ▼ exif.service      → PhotoMetadata (valores reais)
-   ▼ format.util       → strings formatadas (DMS, data BR, "628,5 m")
+   ▼ exif.service      → PhotoMetadata (XMP drone-dji decimal p/ GPS/alt/yaw;
+   │                      EXIF como fallback; ProductName p/ modelo)
+   ▼ format.util       → strings formatadas (decimal→DMS, data BR, "628,5 m", yaw→0..360°)
    ▼ overlay-svg       → monta 1 SVG do tamanho REAL da foto:
    │                      seção (fundo, campos ordenados, ícones) + logo
    ▼ sharp             → carrega foto (auto-rotate EXIF),
@@ -295,12 +316,17 @@ Concorrência: `p-limit(nº núcleos - 1)`. Original nunca é tocado (RF-10).
 ## 11. Segurança / offline
 
 - `contextIsolation: true`, `nodeIntegration: false`; FS/imagem só via IPC nomeado.
-- **CSP** no Renderer bloqueando rede; nenhuma dependência do núcleo exige internet.
+- **CSP** no Renderer bloqueando rede (`main/security.ts`): em produção `connect-src 'none'`; em dev libera o HMR do Vite.
+- **DevTools/console desligados** (RNF-10): `webPreferences.devTools: false`, atalhos bloqueados em `main/shortcuts.ts` (F12, `Ctrl+Shift+I/J/C`, reload em produção, zoom) e `Menu.setApplicationMenu(null)`. Escape hatch de desenvolvimento: `FOTOGEO_DEVTOOLS=1 yarn dev`.
 - Validar caminhos vindos do Renderer no Main.
 
 ---
 
 ## 12. Empacotamento (Windows)
+
+> **Postergado:** o `electron-builder` não está no projeto por enquanto — o ciclo de
+> desenvolvimento é só `yarn dev` até o MVP fechar (passo 8 do §14). O que retomar está em
+> `REQUISITOS.md §11.5`.
 
 - `electron-builder`: target **nsis** (instalador) e **portable** (`.exe` duplo clique).
 - Empacotar binários win-x64 de `sharp` e `exiftool-vendored`; incluir `assets/icons`.
@@ -313,7 +339,10 @@ Concorrência: `p-limit(nº núcleos - 1)`. Original nunca é tocado (RF-10).
 | Risco | Mitigação |
 |-------|-----------|
 | **Preview ≠ saída** (o maior risco) | Modelo de coords relativas único (§7) + ícones Lucide nos dois lados (§9) + Roboto embutida no SVG; opção `preview:render` p/ conferir pixel-perfect. |
-| PNG/BMP sem EXIF de GPS | Mostrar `present[]` por foto (RF-02); regra p/ ausência (a confirmar). |
+| GPS só no XMP (não no EXIF padrão) | `exif.service` **prioriza o namespace `drone-dji`** (GPS em decimal) e usa o EXIF como fallback; nunca depende só de `GPSImgDirection` (ausente na amostra). |
+| Modelo exibido como `FC9589` | Usar `drone-dji:ProductName` (`Lito X1`); `Make`+`Model` só como fallback. |
+| Arquivos grandes (~25 MB, 8064 px) em lote | `sharp` por streaming + `p-limit(núcleos-1)`; SVG do overlay dimensionado à largura real. |
+| PNG/BMP sem EXIF de GPS (caso secundário) | Mostrar `present[]` por foto (RF-02); regra p/ ausência (a confirmar) — não é o fluxo principal. |
 | Roboto diferente entre tela e Sharp | Embutir `roboto.ttf` em base64 (`@font-face`) no SVG usado pelo Sharp (§9.1). |
 | XMP DJI não lido | `exiftool-vendored`. |
 | Módulos nativos no build | `electron-builder` + rebuild; testar `.exe` em Windows real. |
@@ -332,3 +361,25 @@ Concorrência: `p-limit(nº núcleos - 1)`. Original nunca é tocado (RF-10).
 7. `batch.service` → lote, progresso, resumo, preservar originais.
 8. `electron-builder` → `.exe` Windows e teste em máquina real.
 9. Fase 2 (mini mapa offline, direção, preenchimento manual, relatório).
+
+---
+
+## 15. Mapa de metadados — amostra real (DJI Lito X1 / `FC9589`)
+
+Referência para `exif.service.ts`. Extraído das fotos em `drone/`. **Regra:** ler o XMP `drone-dji` primeiro; cair no EXIF quando ausente.
+
+| `PhotoMetadata` | Fonte primária (XMP `drone-dji`) | Fallback (EXIF) | Exemplo real | Formatação (`format.util`) |
+|-----------------|----------------------------------|-----------------|--------------|-----------------------------|
+| `latitude` | `GpsLatitude` (decimal ±) | `GPSLatitude` (rational) + `GPSLatitudeRef` | `-22.991331444` | → DMS `22°59'28.79"S` |
+| `longitude` | `GpsLongitude` (decimal ±) | `GPSLongitude` + `GPSLongitudeRef` | `-52.431268574` | → DMS `52°25'52.57"W` |
+| `absoluteAltitude` | `AbsoluteAltitude` (`+621.504`) | `GPSAltitude` (`628.496`) | `+621.504` | `621,5 m` (BR) |
+| `relativeAltitude` | `RelativeAltitude` (`+132.200`) | — | `+132.200` | `132,2 m` |
+| `dateTimeOriginal` | `xmp:CreateDate` (`2026-07-18T15:57:12-03:00`) | `DateTimeOriginal`/`DateTime` (`2026:07:15 16:32:29`) | ISO c/ fuso | data `18/07/2026` · hora `15:57:12` |
+| `direction` | `GimbalYawDegree` (`-60.30`) → fallback `FlightYawDegree` | `GPSImgDirection` (**ausente** na amostra) | `-60.30` | normalizar `((v%360)+360)%360` → `299,7°` |
+| `droneModel` | `ProductName` (`Lito X1`) | `Make`+`Model` (`DJI FC9589`) | `Lito X1` | texto |
+| `width`/`height` | — | SOF do JPEG | `8064 × 4536` | — |
+| `photoNumber` | — | do nome do arquivo `…_0259_…` | `0259` | `#0259` (opcional) |
+
+Outros tags presentes no XMP (não usados no MVP, úteis para Fase 2/diagnóstico): `GpsStatus`, `AltitudeType`, `GimbalPitchDegree`, `GimbalRollDegree`, `FlightPitch/Roll/YawDegree`, `SensorTemperature`, `CameraSerialNumber`, `ShutterType`, `WhiteBalanceCCT`.
+
+> **Atenção:** valores XMP de altitude/ângulo vêm como **string com sinal** (`"+621.504"`, `"-60.30"`) → fazer `parseFloat`. GPS decimal já traz o sinal (S/W negativos) — a conversão para DMS deriva o hemisfério do sinal, dispensando `*Ref` quando se usa o XMP.

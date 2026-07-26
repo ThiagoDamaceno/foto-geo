@@ -1,2 +1,16 @@
 node_modules
 .env
+exemplos
+
+# build (electron-vite gera out/ também em dev)
+out
+*.tsbuildinfo
+
+# perfis e logos do usuário (gerados em runtime)
+profiles
+
+# logs / SO
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
