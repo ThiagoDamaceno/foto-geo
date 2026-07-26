@@ -20,7 +20,7 @@ Dois processos, com **separação estrita**: a UI/editor roda no **Renderer (Rea
 │  │  • Import (drag & drop)        │IPC │  • EXIF/XMP (exiftool) │  │
 │  │  • Lista de metadados          │<──>│  • Render final (Sharp)│  │
 │  │  • EDITOR WYSIWYG:             │    │  • Lote + concorrência │  │
-│  │    seção, campos (DnD),        │    │  • Perfis .ini (ler/   │  │
+│  │    seção, campos (DnD),        │    │  • Perfis .json (ler/  │  │
 │  │    fonte, tamanho, ícones,     │    │    gravar)             │  │
 │  │    logo livre                  │    │  • FS / cópias         │  │
 │  │  • Preview ao vivo             │    │                        │  │
@@ -31,10 +31,10 @@ Dois processos, com **separação estrita**: a UI/editor roda no **Renderer (Rea
 └──────────────────────────────────────────────────────────────────┘
                                    │
                                    ▼   Sistema de arquivos (Windows)
-                       imagens de entrada · perfis .ini · logos · saída
+                       imagens de entrada · perfis .json · logos · saída
 ```
 
-**Regra de ouro:** o **template** (config) é a fonte única. O Renderer o edita e o **desenha em HTML/CSS** para preview; o Main **reproduz o mesmo template** com Sharp/SVG para o arquivo final. Ambos usam o **mesmo modelo de coordenadas relativas** (§7) → preview = saída.
+**Regra de ouro:** o **template** (config) é a fonte única. O Renderer o edita e exibe **o mesmo SVG** que o Main compõe com o Sharp no arquivo final — não há dois layouts para conciliar (§6). Os dois lados usam o **mesmo código** de geometria e formatação (§7) → preview = saída.
 
 ---
 
@@ -137,7 +137,7 @@ foto-geo/
 
 ## 4. O modelo central: `Template`
 
-Fonte única de verdade, compartilhada Main⇄Renderer e serializada em `.ini`.
+Fonte única de verdade, compartilhada Main⇄Renderer e serializada em `.json` (§8).
 
 ```ts
 // src/shared/types.ts
@@ -216,7 +216,7 @@ export interface JobResult  { total: number; succeeded: number; skipped: number;
 | `photos:scan` | R→M invoke | ✅ Recebe arquivos e/ou pastas, valida os caminhos e devolve `ScanResult` (`PhotoMetadata[]` com `present` + `ignored[]`). |
 | `photos:preview` | R→M invoke | ✅ Foto reduzida (data URL) para o fundo do editor — o original tem ~36 MP. |
 | `preview:render` | R→M invoke | ✅ Carimba 1 foto em tamanho real com o Sharp e devolve reduzida + tempo, para conferir a fidelidade. |
-| `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` | R→M invoke | CRUD de perfis `.ini`. |
+| `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` | R→M invoke | ⬜ CRUD de perfis `.json` (passo 6). |
 | `logo:pick` | R→M invoke | ✅ Selecionar PNG/SVG da logo → `LogoAsset` (PNG + proporção). |
 | `logo:read` | R→M invoke | ✅ Recarregar uma logo já referenciada por um perfil (cache por mtime). |
 | `batch:start` / `batch:cancel` | R→M invoke | Rodar/cancelar lote. |
@@ -445,6 +445,10 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 
 ## 14. Ordem de implementação
 
+> **Estado: 5 de 9 concluídos** (✅ pronto · ⬜ pendente). Este é o placar do projeto —
+> atualizar aqui, no "Estado atual" da §3 e nas marcas do `REQUISITOS.md §4/§5` a cada
+> passo fechado.
+
 1. ✅ Esqueleto `electron-vite` (React+TS+Tailwind) + IPC básico.
 2. ✅ `exif.service` + `photos:scan` → importar fotos reais do Lito X1 e **listar metadados**.
    Premissa validada nas 13 fotos da amostra: todos os 7 campos presentes em todas
@@ -455,10 +459,10 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
    alinhamento exato, seção arrastável e redimensionável.
 5. ✅ Editor completo: campos com DnD (`@dnd-kit`), inspector (largura, fonte, espaçamentos,
    cores, rótulos, visibilidade) e logo PNG/SVG com posição/tamanho livres.
-6. `profile.service` (JSON + validação Zod) → salvar/carregar/duplicar perfis (N logos).
-7. `batch.service` → lote, progresso, resumo, preservar originais.
-8. `electron-builder` → `.exe` Windows e teste em máquina real.
-9. Fase 2 (mini mapa offline, direção, preenchimento manual, relatório).
+6. ⬜ `profile.service` (JSON + validação Zod) → salvar/carregar/duplicar perfis (N logos).
+7. ⬜ `batch.service` → lote, progresso, resumo, preservar originais.
+8. ⬜ `electron-builder` → `.exe` Windows e teste em máquina real.
+9. ⬜ Fase 2 (mini mapa offline, direção, preenchimento manual, relatório).
 
 ---
 

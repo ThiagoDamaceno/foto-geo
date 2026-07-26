@@ -3,6 +3,9 @@
 Editor visual de carimbo de telemetria para fotos de drone + aplicação em lote.
 Desktop Windows, **100% offline**.
 
+**Progresso: 5 de 9 passos** (`ARQUITETURA.md §14`) — editor pronto; faltam perfis, lote e
+empacotamento. Estado por requisito nas marcas ✅/🔶/⬜ do `REQUISITOS.md §4` e `§5`.
+
 - **O que é / o que faz:** `REQUISITOS.md`
 - **Como é construído:** `ARQUITETURA.md`
 - **Requisitos de instalação (detalhado):** `REQUISITOS.md §11`

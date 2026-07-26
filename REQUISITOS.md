@@ -12,7 +12,7 @@ Aplicativo **desktop Windows, 100% offline**, para **carimbar fotos de drone** c
 
 **Formato-alvo (confirmado pela amostra):** fotos **JPG da DJI (linha Lito X1 / `FC9589`)**, `8064×4536` (~36 MP), ~24–27 MB, com **EXIF _e_ XMP `drone-dji`** completos. É o caso principal do produto; outros formatos (PNG/BMP/TIFF/WEBP) são secundários e podem não ter GPS (ver RF-01/RF-02).
 
-Diferente da ideia inicial (overlay fixo por checkbox), o app agora é um **editor visual de template**: o usuário monta uma **seção de dados** sobre a imagem (posição, tamanho, fonte, ícones, ordem dos campos), posiciona uma **logo livre**, salva tudo em **perfis (.ini)** e aplica o template a **N imagens** de uma vez.
+Diferente da ideia inicial (overlay fixo por checkbox), o app agora é um **editor visual de template**: o usuário monta uma **seção de dados** sobre a imagem (posição, tamanho, fonte, ícones, ordem dos campos), posiciona uma **logo livre**, salva tudo em **perfis (`.json`)** e aplica o template a **N imagens** de uma vez.
 
 **Fluxo mental:** montar o template uma vez → salvar perfil → reaproveitar em qualquer lote.
 
@@ -54,24 +54,30 @@ Extraídos dos metadados (EXIF/XMP) no momento do **import**. As colunas de orig
 
 ## 4. Requisitos funcionais
 
-### RF-01 — Importação de N imagens
+> **Legenda de estado:** ✅ pronto · 🔶 parcial · ⬜ não começou.
+> O estado é atualizado a cada passo concluído do `ARQUITETURA.md §14`
+> (hoje: passos 1–5 de 9). Detalhe do que falta em cada item logo abaixo do título.
+
+### ✅ RF-01 — Importação de N imagens
 - Importar várias imagens (botão + **drag & drop** de arquivos/pasta).
 - **Formato principal (garantido):** **JPG/JPEG** da DJI (EXIF + XMP `drone-dji`) — é o que o drone produz e o foco do MVP.
 - Formatos secundários aceitos: **PNG, BMP, TIFF, WEBP** (podem não ter telemetria).
+- ⚠️ O **drag & drop** está implementado, mas só é verificável rodando no Windows — o WSLg não
+  arrasta do Explorer (§11.4). Import por botão/seletor validado nas 13 fotos da amostra.
 - ⚠️ **Metadados x formato:** na amostra real (JPG DJI) **todos** os campos existem. PNG/BMP tendem a **não** ter EXIF/XMP de GPS — o app deve mostrar claramente, por foto, quais dados foram encontrados (ver RF-02).
 
-### RF-02 — Mapeamento e listagem dos metadados
+### ✅ RF-02 — Mapeamento e listagem dos metadados
 - Ao importar, extrair e **listar todos os campos disponíveis** por imagem.
 - Exibir uma visão do lote: quais fotos têm GPS/altitude/etc. e quais não têm.
 
-### RF-03 — Seção de dados (o "carimbo" de telemetria)
+### ✅ RF-03 — Seção de dados (o "carimbo" de telemetria)
 - Renderizar uma **seção** sobre a imagem com os dados **empilhados verticalmente** (um abaixo do outro), como na `2.png`.
 - Cada linha = ícone + rótulo/valor do campo.
 
-### RF-04 — Reordenar campos (drag & drop)
+### ✅ RF-04 — Reordenar campos (drag & drop)
 - Arrastar os campos **para reordenar** a posição vertical dentro da seção. *(DnD serve só para trocar a ordem — não para outras edições.)*
 
-### RF-05 — Configurações da seção
+### 🔶 RF-05 — Configurações da seção
 > A interface do app tem tema **claro/escuro** (RNF-09) — isso vale para o editor todo;
 > não afeta o carimbo gerado, cujas cores vêm do template (`bgColor`/`textColor`).
 
@@ -86,45 +92,45 @@ Ajustáveis pelo usuário:
   texto centralizado exige medir a largura do texto, o que SVG não faz — e o jeito errado de
   resolver quebraria a fidelidade preview↔saída (RNF-05).
 
-### RF-06 — Logo (posicionamento livre)
+### ✅ RF-06 — Logo (posicionamento livre)
 - Importar uma logo em **PNG ou SVG**.
 - **Arrastar livremente** para qualquer posição sobre a imagem (posição/tamanho livres), com
   opacidade ajustável.
 - SVG é convertido para PNG na importação (mesma imagem no preview e na saída — `ARQUITETURA.md §6`).
 - *(A marca em si — ENDEGRO vs Quartz — segue em aberto, mas a mecânica é: usuário fornece o arquivo.)*
 
-### RF-07 — Perfis e persistência em JSON
+### ⬜ RF-07 — Perfis e persistência em JSON
 - Salvar **todas as configurações** (seção, campos, ordem, fonte, posições, logo) em um **arquivo JSON** por perfil.
 - Suportar **N perfis** (ex.: um por cliente/obra), cada um podendo referenciar sua **própria logo** (N logos).
 - Carregar/editar/duplicar perfis.
 
-### RF-08 — Preview fiel
+### ✅ RF-08 — Preview fiel
 - Mostrar **preview ao vivo** do template sobre uma imagem real, **idêntico** ao arquivo que será gerado.
 
-### RF-09 — Aplicação em lote
+### ⬜ RF-09 — Aplicação em lote
 - Aplicar o perfil selecionado a **todas as N imagens** importadas.
 - Salvar **cópias** em pasta de saída, **preservando os originais**.
 - Barra de **progresso** e **resumo** ao final (sucesso/ignoradas/erro).
 
-### RF-10 — Preservação do original
+### ✅ RF-10 — Preservação do original
 - Nunca alterar o arquivo de entrada; sempre gerar cópia.
 
 ---
 
 ## 5. Requisitos não funcionais
 
-| ID | Requisito |
-|----|-----------|
-| RNF-01 | 100% **offline** (sem rede na função principal). |
-| RNF-02 | **Windows** `.exe`, duplo clique, sem runtime externo. |
-| RNF-03 | Não modifica originais. |
-| RNF-04 | **Independência de resolução:** o mesmo template funciona em fotos de tamanhos diferentes (posições/tamanhos relativos — ver `ARQUITETURA.md §7`). |
-| RNF-05 | **Fidelidade preview↔saída:** o que se vê no editor é o que é gerado. |
-| RNF-06 | Desempenho em lote (centenas de fotos, paralelismo controlado). |
-| RNF-07 | PT-BR; formatos BR (data/decimal). |
-| RNF-08 | Robustez: uma foto ruim não aborta o lote. |
-| RNF-09 | **Tema claro/escuro** em toda a interface — **apenas esses dois modos** (sem opção "Sistema"), alternáveis no cabeçalho e **persistidos** entre execuções. Na primeira execução o app adota o modo de cor do Windows como valor inicial. Todo componente novo deve nascer com as duas variantes. |
-| RNF-10 | **Sem console/DevTools para o usuário:** `F12`, `Ctrl+Shift+I/J/C` (e `Cmd+Alt+I`) bloqueados, DevTools desligado na janela e menu nativo removido. Depuração em desenvolvimento com `FOTOGEO_DEVTOOLS=1 yarn dev`. |
+| ID | Requisito | Situação |
+|----|-----------|----------|
+| RNF-01 | 100% **offline** (sem rede na função principal). | ✅ nenhuma chamada de rede; CSP bloqueia |
+| RNF-02 | **Windows** `.exe`, duplo clique, sem runtime externo. | ⬜ empacotamento é o passo 8 |
+| RNF-03 | Não modifica originais. | ✅ sempre gera cópia |
+| RNF-04 | **Independência de resolução:** o mesmo template funciona em fotos de tamanhos diferentes (posições/tamanhos relativos — ver `ARQUITETURA.md §7`). | ✅ tudo relativo, verificado |
+| RNF-05 | **Fidelidade preview↔saída:** o que se vê no editor é o que é gerado. | ✅ preview usa o SVG da saída |
+| RNF-06 | Desempenho em lote (centenas de fotos, paralelismo controlado). | 🔶 tempos medidos; lote é o passo 7 |
+| RNF-07 | PT-BR; formatos BR (data/decimal). | ✅ textos e formatos BR |
+| RNF-08 | Robustez: uma foto ruim não aborta o lote. | 🔶 leitura/logo protegidas; lote é o passo 7 |
+| RNF-09 | **Tema claro/escuro** em toda a interface — **apenas esses dois modos** (sem opção "Sistema"), alternáveis no cabeçalho e **persistidos** entre execuções. Na primeira execução o app adota o modo de cor do Windows como valor inicial. Todo componente novo deve nascer com as duas variantes. | ✅ claro/escuro persistido |
+| RNF-10 | **Sem console/DevTools para o usuário:** `F12`, `Ctrl+Shift+I/J/C` (e `Cmd+Alt+I`) bloqueados, DevTools desligado na janela e menu nativo removido. Depuração em desenvolvimento com `FOTOGEO_DEVTOOLS=1 yarn dev`. | ✅ atalhos e menu bloqueados |
 
 ---
 
@@ -177,13 +183,14 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 
 ## 10. Escopo
 
-**Fase 1 (MVP):**
-- Import N imagens + mapeamento/listagem de metadados.
-- Editor: seção com campos empilhados, reordenar por DnD, local/tamanho/fonte (Roboto), ícones fixos (Lucide).
-- Logo importada (PNG/SVG) com posicionamento livre.
-- Preview fiel + aplicação em lote + preservar originais.
-- Perfis em **JSON** (salvar/carregar/duplicar).
-- Build `.exe` Windows offline.
+**Fase 1 (MVP)** — estado em 5 dos 9 passos do `ARQUITETURA.md §14`:
+- ✅ Import N imagens + mapeamento/listagem de metadados.
+- ✅ Editor: seção com campos empilhados, reordenar por DnD, local/tamanho/fonte, ícones fixos (Lucide).
+  *(fonte Roboto pendente do arquivo `assets/fonts/roboto.ttf` — hoje cai na sans-serif do sistema)*
+- ✅ Logo importada (PNG/SVG) com posicionamento livre.
+- ✅ Preview fiel + preservar originais · ⬜ aplicação em lote.
+- ⬜ Perfis em **JSON** (salvar/carregar/duplicar).
+- ⬜ Build `.exe` Windows offline.
 
 **Fase 2:**
 - Seletor/troca de ícone por campo; mini mapa offline; direção (rosa dos ventos); preenchimento manual de dados ausentes; relatório CSV/PDF; import/export de perfis; templates prontos.
