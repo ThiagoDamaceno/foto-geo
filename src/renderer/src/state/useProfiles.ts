@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { LogoAsset, ProfileSummary, Template } from '@shared/types'
+import { messageOf } from '../lib/ipc-error'
 
 export interface ProfilesState {
   profiles: ProfileSummary[]
@@ -65,7 +66,7 @@ export function useProfiles(
     try {
       await task()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(messageOf(cause))
     } finally {
       setIsBusy(false)
     }

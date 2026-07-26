@@ -133,6 +133,55 @@ export interface ProfileFile {
 }
 
 /**
+ * Nome dos arquivos gerados pelo lote (REQUISITOS.md §9.2):
+ * `keep` = mesmo nome do original (em outra pasta) · `suffix` = acrescenta `_geo`.
+ */
+export type OutputNaming = 'keep' | 'suffix'
+
+/** Pedido de lote (RF-09). A saída é sempre JPEG, em pasta diferente da dos originais. */
+export interface BatchConfig {
+  photos: string[]
+  outputDir: string
+  template: Template
+  naming: OutputNaming
+  /** `false`: arquivo já existente na saída é ignorado em vez de sobrescrito. */
+  overwrite: boolean
+}
+
+/** Andamento do lote (canal `batch:progress`). */
+export interface JobProgress {
+  total: number
+  processed: number
+  /** Nome do arquivo em processamento — só para a linha de status. */
+  currentFile: string
+  succeeded: number
+  skipped: number
+  failed: number
+}
+
+/** Uma foto que não gerou cópia: ignorada (nada a fazer) ou com erro (RNF-08). */
+export interface BatchIssue {
+  file: string
+  reason: string
+  /** `true` = ignorada de propósito; `false` = falha real. */
+  skipped: boolean
+}
+
+/** Resumo do lote (RF-09), devolvido pelo próprio `batch:start`. */
+export interface JobResult {
+  total: number
+  succeeded: number
+  skipped: number
+  failed: number
+  outputDir: string
+  /** Interrompido pelo usuário: as cópias já geradas continuam na pasta. */
+  canceled: boolean
+  elapsedMs: number
+  /** Uma linha por foto sem cópia — ignoradas e erros, na ordem em que apareceram. */
+  issues: BatchIssue[]
+}
+
+/**
  * Logo carregada e pronta para o carimbo.
  *
  * O Main **sempre converte para PNG** (mesmo quando a origem é SVG): o Chromium e o librsvg
@@ -195,4 +244,17 @@ export interface FotoGeoApi {
   saveProfile: (id: string | null, template: Template) => Promise<ProfileSummary>
   duplicateProfile: (id: string) => Promise<ProfileSummary>
   deleteProfile: (id: string) => Promise<void>
+  /** Seletor da pasta de saída do lote; `null` se o usuário cancelar. */
+  pickOutputDir: () => Promise<string | null>
+  /**
+   * Roda o lote (RF-09). A promessa **resolve com o resumo** quando o lote termina —
+   * não existe canal `batch:done`: um caminho a menos para dessincronizar tela e Main.
+   */
+  startBatch: (config: BatchConfig) => Promise<JobResult>
+  /** Pede a interrupção; o lote termina o que já começou e resolve com `canceled: true`. */
+  cancelBatch: () => Promise<void>
+  /** Abre a pasta no Explorer. O Main só aceita diretórios (ARQUITETURA.md §11). */
+  openPath: (target: string) => Promise<void>
+  /** Assina o andamento do lote; devolve a função que cancela a assinatura. */
+  onBatchProgress: (listener: (progress: JobProgress) => void) => () => void
 }

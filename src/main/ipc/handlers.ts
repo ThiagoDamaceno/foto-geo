@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import type { AppInfo, ScanResult } from '@shared/types'
 import type { PhotoMetadata, Template } from '@shared/types'
-import { pickFolder, pickImages, pickLogo } from '../services/dialog.service'
+import { openFolder, pickFolder, pickImages, pickLogo, pickOutputDir } from '../services/dialog.service'
+import { cancelBatch, runBatch } from '../services/batch.service'
 import { loadLogoAsset } from '../services/logo.service'
 import { collectImagePaths } from '../services/files.service'
 import { scanPhotos } from '../services/exif.service'
@@ -66,6 +67,17 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IPC.profilesDuplicate, (_event, id: string) => duplicateProfile(id))
   ipcMain.handle(IPC.profilesDelete, (_event, id: string) => deleteProfile(id))
+
+  // Lote (RF-09). O resumo volta neste mesmo `invoke`; o `batch:progress` é só a barra.
+  ipcMain.handle(IPC.pickOutputDir, (event) => pickOutputDir(windowOf(event)))
+  ipcMain.handle(IPC.batchStart, (event, config: unknown) =>
+    runBatch(config, (progress) => {
+      // a janela pode ter sido fechada no meio do lote
+      if (!event.sender.isDestroyed()) event.sender.send(IPC.batchProgress, progress)
+    })
+  )
+  ipcMain.handle(IPC.batchCancel, () => cancelBatch())
+  ipcMain.handle(IPC.openPath, (_event, target: unknown) => openFolder(target))
 }
 
 /** Caminho vindo do Renderer passa pela mesma validação do import (ARQUITETURA.md §11). */

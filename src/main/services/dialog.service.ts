@@ -1,4 +1,6 @@
-import { dialog, type BrowserWindow } from 'electron'
+import { stat } from 'node:fs/promises'
+import { isAbsolute, resolve } from 'node:path'
+import { dialog, shell, type BrowserWindow } from 'electron'
 import { IMAGE_EXTENSIONS } from '@shared/image-formats'
 import type { LogoAsset } from '@shared/types'
 import { listImagesInFolder } from './files.service'
@@ -45,10 +47,37 @@ export async function pickLogo(parent: BrowserWindow | null): Promise<LogoAsset 
   return file ? loadLogoAsset(file) : null
 }
 
+/** Seletor da pasta de saída do lote (RF-09). Devolve `null` quando o usuário cancela. */
+export async function pickOutputDir(parent: BrowserWindow | null): Promise<string | null> {
+  const [folder] = await showOpen(parent, {
+    title: 'Escolher pasta de saída',
+    buttonLabel: 'Usar esta pasta',
+    properties: ['openDirectory', 'createDirectory']
+  })
+
+  return folder ?? null
+}
+
+/**
+ * Abre a pasta de saída no Explorer. **Só diretório**: `shell.openPath` num arquivo pediria ao
+ * Windows para executá-lo, e o caminho vem do Renderer (ARQUITETURA.md §11).
+ */
+export async function openFolder(target: unknown): Promise<void> {
+  if (typeof target !== 'string' || target.trim() === '' || !isAbsolute(target)) {
+    throw new Error('Caminho inválido')
+  }
+
+  const folder = resolve(target)
+  if (!(await stat(folder)).isDirectory()) throw new Error('O caminho não é uma pasta')
+
+  const error = await shell.openPath(folder)
+  if (error) throw new Error(error)
+}
+
 interface OpenOptions {
   title: string
   buttonLabel: string
-  properties: ('openFile' | 'openDirectory' | 'multiSelections')[]
+  properties: ('openFile' | 'openDirectory' | 'multiSelections' | 'createDirectory')[]
   filters?: { name: string; extensions: string[] }[]
 }
 

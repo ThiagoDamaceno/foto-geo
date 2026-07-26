@@ -56,7 +56,7 @@ Extraídos dos metadados (EXIF/XMP) no momento do **import**. As colunas de orig
 
 > **Legenda de estado:** ✅ pronto · 🔶 parcial · ⬜ não começou.
 > O estado é atualizado a cada passo concluído do `ARQUITETURA.md §14`
-> (hoje: passos 1–5 de 9). Detalhe do que falta em cada item logo abaixo do título.
+> (hoje: passos 1–7 de 9). Detalhe do que falta em cada item logo abaixo do título.
 
 ### ✅ RF-01 — Importação de N imagens
 - Importar várias imagens (botão + **drag & drop** de arquivos/pasta).
@@ -113,10 +113,12 @@ Ajustáveis pelo usuário:
 ### ✅ RF-08 — Preview fiel
 - Mostrar **preview ao vivo** do template sobre uma imagem real, **idêntico** ao arquivo que será gerado.
 
-### ⬜ RF-09 — Aplicação em lote
+### ✅ RF-09 — Aplicação em lote
 - Aplicar o perfil selecionado a **todas as N imagens** importadas.
 - Salvar **cópias** em pasta de saída, **preservando os originais**.
 - Barra de **progresso** e **resumo** ao final (sucesso/ignoradas/erro).
+- Nome dos arquivos: **manter o original** (padrão) ou sufixo `_geo` — escolha no painel
+  (§9 item 2 resolvido). Pasta de saída **obrigatoriamente diferente** da dos originais.
 
 ### ✅ RF-10 — Preservação do original
 - Nunca alterar o arquivo de entrada; sempre gerar cópia.
@@ -132,9 +134,9 @@ Ajustáveis pelo usuário:
 | RNF-03 | Não modifica originais. | ✅ sempre gera cópia |
 | RNF-04 | **Independência de resolução:** o mesmo template funciona em fotos de tamanhos diferentes (posições/tamanhos relativos — ver `ARQUITETURA.md §7`). | ✅ tudo relativo, verificado |
 | RNF-05 | **Fidelidade preview↔saída:** o que se vê no editor é o que é gerado. | ✅ preview usa o SVG da saída |
-| RNF-06 | Desempenho em lote (centenas de fotos, paralelismo controlado). | 🔶 tempos medidos; lote é o passo 7 |
+| RNF-06 | Desempenho em lote (centenas de fotos, paralelismo controlado). | ✅ `p-limit` com teto 4 (memória ~150 MB/foto 36 MP) |
 | RNF-07 | PT-BR; formatos BR (data/decimal). | ✅ textos e formatos BR |
-| RNF-08 | Robustez: uma foto ruim não aborta o lote. | 🔶 leitura, logo e perfis protegidos; lote é o passo 7 |
+| RNF-08 | Robustez: uma foto ruim não aborta o lote. | ✅ falha vira linha do resumo; lote segue |
 | RNF-09 | **Tema claro/escuro** em toda a interface — **apenas esses dois modos** (sem opção "Sistema"), alternáveis no cabeçalho e **persistidos** entre execuções. Na primeira execução o app adota o modo de cor do Windows como valor inicial. Todo componente novo deve nascer com as duas variantes. | ✅ claro/escuro persistido |
 | RNF-10 | **Sem console/DevTools para o usuário:** `F12`, `Ctrl+Shift+I/J/C` (e `Cmd+Alt+I`) bloqueados, DevTools desligado na janela e menu nativo removido. Depuração em desenvolvimento com `FOTOGEO_DEVTOOLS=1 yarn dev`. | ✅ atalhos e menu bloqueados |
 
@@ -180,21 +182,21 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 ## 9. Questões em aberto
 
 1. **Altitude a exibir:** implementado como **absoluta** (`AbsoluteAltitude`/`GPSAltitude`), caindo na **relativa** quando a absoluta falta. Confirmar se a relativa deve virar opção no inspector ou aparecer junto.
-2. **Nome dos arquivos de saída** (sufixo `_geo`? manter nome?) — ainda em aberto; o lote (passo 7) precisa dessa definição.
+2. ~~**Nome dos arquivos de saída**~~ — **resolvido:** padrão = **manter o nome original** na pasta de saída; opção no painel = sufixo `_geo`. Saída sempre `.jpg` (encoder do Sharp).
 3. **Marca/logo oficial** (ENDEGRO vs Quartz) — só afeta o exemplo/branding, não a mecânica.
 
-**Resolvidas:** perfis em **JSON**; posição da seção e da logo **livres**; ícones = **Lucide, fixos por campo**; fonte = **Roboto**; **formato principal = JPG DJI** (EXIF+XMP presentes); **GPS lido do XMP `drone-dji` (decimal)** com fallback EXIF; **modelo = `ProductName`**; **tamanho da fonte é relativo** (`fontPct` = fração da largura da imagem — escala junto, RNF-04); **campo sem valor não entra no carimbo** (a caixa encolhe). Fotos PNG/BMP sem GPS deixam de ser o caso central (secundário — a definir tratamento).
+**Resolvidas:** perfis em **JSON**; posição da seção e da logo **livres**; ícones = **Lucide, fixos por campo**; fonte = **Roboto**; **formato principal = JPG DJI** (EXIF+XMP presentes); **GPS lido do XMP `drone-dji` (decimal)** com fallback EXIF; **modelo = `ProductName`**; **tamanho da fonte é relativo** (`fontPct` = fração da largura da imagem — escala junto, RNF-04); **campo sem valor não entra no carimbo** (a caixa encolhe); **nome de saída = manter original** (com opção `_geo`). Fotos PNG/BMP sem GPS deixam de ser o caso central (secundário — a definir tratamento).
 
 ---
 
 ## 10. Escopo
 
-**Fase 1 (MVP)** — estado em 6 dos 9 passos do `ARQUITETURA.md §14`:
+**Fase 1 (MVP)** — estado em 7 dos 9 passos do `ARQUITETURA.md §14`:
 - ✅ Import N imagens + mapeamento/listagem de metadados.
 - ✅ Editor: seção com campos empilhados, reordenar por DnD, local/tamanho/fonte, ícones fixos (Lucide).
   *(fonte Roboto pendente do arquivo `assets/fonts/roboto.ttf` — hoje cai na sans-serif do sistema)*
 - ✅ Logo importada (PNG/SVG) com posicionamento livre.
-- ✅ Preview fiel + preservar originais · ⬜ aplicação em lote.
+- ✅ Preview fiel + preservar originais + **aplicação em lote** (progresso, cancelar, resumo).
 - ✅ Perfis em **JSON** (salvar/carregar/duplicar/excluir, cada um com sua logo).
 - ⬜ Build `.exe` Windows offline.
 
@@ -205,11 +207,11 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 
 ## 11. Requisitos de instalação (ambiente de desenvolvimento)
 
-Estado atual do repo (`ARQUITETURA.md §14`, passos 1–6): **import com leitura de telemetria
+Estado atual do repo (`ARQUITETURA.md §14`, passos 1–7): **import com leitura de telemetria
 (RF-01/RF-02), carimbo gerado pelo Sharp em tamanho real, preview fiel (RF-03/RF-08), editor
 completo — ordem dos campos por DnD (RF-04), seção/fonte/cores no inspector (RF-05) e logo com
-posição livre (RF-06) — e perfis em JSON (RF-07)**. Falta a aplicação em lote (RF-09).
-Empacotamento ainda **não** está configurado — ver §11.6.
+posição livre (RF-06) —, perfis em JSON (RF-07) e aplicação em lote (RF-09)**. Falta o
+empacotamento `.exe` (passo 8) — ver §11.6. Pontos de atenção do projeto: `ARQUITETURA.md §16`.
 
 ### 11.1 Pré-requisitos
 
@@ -295,6 +297,7 @@ Linux, ou rodando o app no Windows. O import por **botão/seletor** cobre o rest
 | `lucide-static` | **instalado** | SVG cru dos ícones do carimbo (sem binário). |
 | `@dnd-kit/*` | **instalado** | Reordenar campos (`core`, `sortable`, `modifiers`, `utilities`) — sem binário. |
 | `zod` | **instalado** | Validação dos perfis `.json` ao carregar (RF-07) — sem binário. |
+| `p-limit` | **instalado** | Concorrência do lote (RF-09 / RNF-06) — sem binário. |
 
 Binários instalados no WSL/Linux valem só para desenvolvimento — o `.exe` final exige os
 binários **win-x64**, baixados/reconstruídos no Windows na etapa de empacotamento.

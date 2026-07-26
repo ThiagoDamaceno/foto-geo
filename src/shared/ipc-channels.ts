@@ -13,5 +13,11 @@ export const IPC = {
   profilesLoad: 'profiles:load',
   profilesSave: 'profiles:save',
   profilesDuplicate: 'profiles:duplicate',
-  profilesDelete: 'profiles:delete'
+  profilesDelete: 'profiles:delete',
+  pickOutputDir: 'dialog:pickOutputDir',
+  batchStart: 'batch:start',
+  batchCancel: 'batch:cancel',
+  /** Único canal M→R do app: o resultado do lote volta no `invoke` do `batch:start`. */
+  batchProgress: 'batch:progress',
+  openPath: 'shell:openPath'
 } as const

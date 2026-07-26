@@ -3,8 +3,9 @@
 Editor visual de carimbo de telemetria para fotos de drone + aplicação em lote.
 Desktop Windows, **100% offline**.
 
-**Progresso: 6 de 9 passos** (`ARQUITETURA.md §14`) — editor e perfis prontos; faltam o lote e o
-empacotamento. Estado por requisito nas marcas ✅/🔶/⬜ do `REQUISITOS.md §4` e `§5`.
+**Progresso: 7 de 9 passos** (`ARQUITETURA.md §14`) — MVP funcional (import → editor → perfis →
+lote); falta o empacotamento `.exe`. Estado por requisito nas marcas ✅/🔶/⬜ do
+`REQUISITOS.md §4` e `§5`. Pontos de atenção do projeto: `ARQUITETURA.md §16`.
 
 - **O que é / o que faz:** `REQUISITOS.md`
 - **Como é construído:** `ARQUITETURA.md`
@@ -70,7 +71,7 @@ rodando no Windows). Detalhes em `REQUISITOS.md §11.4`.
   teclado bloqueados; menu nativo removido — `src/main/shortcuts.ts`.
 
 > Empacotamento (`.exe` NSIS/portátil) está **postergado** até o MVP fechar —
-> `REQUISITOS.md §11.5` e `ARQUITETURA.md §12`.
+> `REQUISITOS.md §11.6` e `ARQUITETURA.md §12`.
 
 ## Estrutura
 
@@ -84,18 +85,20 @@ src/
 │   └── services/
 │       ├── exif.service.ts     # XMP drone-dji + EXIF → PhotoMetadata
 │       ├── render.service.ts   # SVG + Sharp → foto carimbada / preview
+│       ├── batch.service.ts    # lote: p-limit, progresso, resumo (RF-09)
 │       ├── logo.service.ts     # logo PNG/SVG → PNG + proporção
 │       ├── profile.service.ts  # perfis .json (zod) → salvar/abrir/duplicar/excluir
 │       ├── icon-markup.ts      # ícones do carimbo (lucide-static)
 │       ├── files.service.ts    # valida/expande caminhos do Renderer
-│       └── dialog.service.ts   # seletores de arquivo/pasta
+│       └── dialog.service.ts   # seletores + abrir pasta de saída
 ├── preload/                    # contextBridge → window.fotoGeo
 ├── renderer/                   # React + Tailwind (editor WYSIWYG)
 │   └── src/
 │       ├── components/         # ImportDropzone, MetadataList, EditorCanvas,
-│       │                       # InspectorPanel, FieldList, ProfileBar, ThemeToggle
-│       ├── state/              # usePhotos (lote), useTemplate (carimbo), useProfiles
-│       └── lib/                # theme, ícones da UI e do carimbo
+│       │                       # InspectorPanel, FieldList, ProfileBar, BatchPanel,
+│       │                       # ProgressBar, ThemeToggle
+│       ├── state/              # usePhotos, useTemplate, useProfiles, useBatch
+│       └── lib/                # theme, ipc-error, ícones da UI e do carimbo
 └── shared/                     # tipos, IPC, geometria, overlay-svg, formatação (os dois lados)
 assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pendente
 ```
@@ -115,6 +118,9 @@ assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pend
    excluir quantos perfis quiser — um por cliente/obra, cada um com sua logo. A barra avisa
    quando há *alterações não salvas*; perfil de versão antiga abre com o que é válido e diz o
    que voltou ao padrão.
+6. **Aplicar em lote**: escolher pasta de saída (diferente da dos originais), manter o nome ou
+   acrescentar `_geo`, processar as N fotos com barra de progresso, cancelar no meio e ver o
+   resumo (sucesso / ignoradas / erro) com atalho para abrir a pasta.
 
 O preview **não é um desenho parecido** com a saída: é o mesmo SVG que o Sharp compõe no
 arquivo final (`src/shared/overlay-svg.ts`), só escalado. Fonte, ícones (Lucide), posições e
@@ -122,7 +128,6 @@ formatação vêm de código compartilhado — ver `ARQUITETURA.md §6`.
 
 ## Próximos passos
 
-Ordem de implementação em `ARQUITETURA.md §14`: passos 1–6 feitos. O próximo é o passo 7 —
-aplicação em lote (`batch.service`): aplicar o perfil às N fotos importadas gerando cópias em
-uma pasta de saída, com barra de progresso e resumo (sucesso/ignoradas/erro). Depois vem o
-empacotamento `.exe` (passo 8).
+Ordem de implementação em `ARQUITETURA.md §14`: passos 1–7 feitos. O próximo é o passo 8 —
+empacotamento `.exe` Windows (`electron-builder`, binários win-x64 de `sharp` /
+`exiftool-vendored`, teste em máquina real). Depois a Fase 2 (passo 9).

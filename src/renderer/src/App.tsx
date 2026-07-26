@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FileWarning, Images, Trash2 } from 'lucide-react'
+import BatchPanel from './components/BatchPanel'
 import EditorCanvas from './components/EditorCanvas'
 import ImportDropzone from './components/ImportDropzone'
 import InspectorPanel from './components/InspectorPanel'
@@ -7,6 +8,7 @@ import MetadataList from './components/MetadataList'
 import ProfileBar from './components/ProfileBar'
 import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './lib/theme'
+import { useBatch } from './state/useBatch'
 import { usePhotos } from './state/usePhotos'
 import { useProfiles } from './state/useProfiles'
 import { useTemplate } from './state/useTemplate'
@@ -42,6 +44,7 @@ export default function App(): React.JSX.Element {
     reset
   } = useTemplate()
   const profiles = useProfiles(template, applyTemplate, reset)
+  const batch = useBatch(template)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
@@ -192,6 +195,26 @@ export default function App(): React.JSX.Element {
               </div>
             )}
 
+            {/* o lote usa o carimbo que está na tela; não depende da foto selecionada */}
+            <BatchPanel
+              photoCount={photos.length}
+              sampleName={photos[0]?.fileName ?? null}
+              outputDir={batch.outputDir}
+              naming={batch.naming}
+              overwrite={batch.overwrite}
+              isRunning={batch.isRunning}
+              progress={batch.progress}
+              result={batch.result}
+              error={batch.error}
+              onPickOutputDir={() => void batch.pickOutputDir()}
+              onNaming={batch.setNaming}
+              onOverwrite={batch.setOverwrite}
+              onStart={() => void batch.start(photos.map((photo) => photo.filePath))}
+              onCancel={() => void batch.cancel()}
+              onOpenOutput={() => void batch.openOutput()}
+              onDismiss={batch.dismiss}
+            />
+
             <MetadataList
               photos={photos}
               selectedPath={selected?.filePath ?? null}
@@ -202,8 +225,8 @@ export default function App(): React.JSX.Element {
         ) : (
           !isScanning && (
             <p className="text-center text-xs text-slate-500 dark:text-slate-400">
-              Nenhuma foto importada ainda. O próximo passo do app — editor do carimbo — usa a
-              telemetria lida aqui.
+              Nenhuma foto importada ainda. Arraste arquivos ou use os seletores acima para
+              começar.
             </p>
           )
         )}

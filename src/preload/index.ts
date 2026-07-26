@@ -1,9 +1,11 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { IPC } from '@shared/ipc-channels'
 import type {
   AppInfo,
   FotoGeoApi,
+  JobProgress,
+  JobResult,
   LogoAsset,
   PreviewImage,
   ProfileFile,
@@ -31,7 +33,19 @@ const api: FotoGeoApi = {
     ipcRenderer.invoke(IPC.profilesSave, id, template) as Promise<ProfileSummary>,
   duplicateProfile: (id) =>
     ipcRenderer.invoke(IPC.profilesDuplicate, id) as Promise<ProfileSummary>,
-  deleteProfile: (id) => ipcRenderer.invoke(IPC.profilesDelete, id) as Promise<void>
+  deleteProfile: (id) => ipcRenderer.invoke(IPC.profilesDelete, id) as Promise<void>,
+  pickOutputDir: () => ipcRenderer.invoke(IPC.pickOutputDir) as Promise<string | null>,
+  startBatch: (config) => ipcRenderer.invoke(IPC.batchStart, config) as Promise<JobResult>,
+  cancelBatch: () => ipcRenderer.invoke(IPC.batchCancel) as Promise<void>,
+  openPath: (target) => ipcRenderer.invoke(IPC.openPath, target) as Promise<void>,
+  onBatchProgress: (listener) => {
+    const handler = (_event: IpcRendererEvent, progress: JobProgress): void => listener(progress)
+    ipcRenderer.on(IPC.batchProgress, handler)
+    // devolver o "desassinar" evita listener duplicado quando o React remonta o efeito
+    return () => {
+      ipcRenderer.removeListener(IPC.batchProgress, handler)
+    }
+  }
 }
 
 if (process.contextIsolated) {

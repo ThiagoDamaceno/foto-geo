@@ -93,13 +93,16 @@ foto-geo/
 │   │   │   ├── InspectorPanel.tsx      # largura, fonte, espaçamentos, cores, logo
 │   │   │   ├── FieldList.tsx           # campos: reordenar (dnd-kit) e ligar/desligar
 │   │   │   ├── ProfileBar.tsx          # escolher/salvar/duplicar/excluir perfil (RF-07)
-│   │   │   ├── ProgressBar.tsx / SummaryPanel.tsx   # lote (passo 7)
+│   │   │   ├── BatchPanel.tsx          # pasta de saída, naming, progresso e resumo (RF-09)
+│   │   │   ├── ProgressBar.tsx         # barra do lote
 │   │   │   └── ThemeToggle.tsx          # alterna claro ⇄ escuro (RNF-09)
 │   │   ├── state/
 │   │   │   ├── usePhotos.ts            # lote importado
 │   │   │   ├── useProfiles.ts          # perfis salvos + "alterações não salvas"
+│   │   │   ├── useBatch.ts             # pasta de saída + progresso/resumo do lote
 │   │   │   └── useTemplate.ts          # template em edição + logo carregada
 │   │   ├── lib/theme.ts                # tema: data-theme no <html> + localStorage
+│   │   ├── lib/ipc-error.ts            # mensagem de erro IPC sem derrubar a UI
 │   │   ├── lib/field-icons.ts          # FieldKey -> componente lucide-react (UI do app)
 │   │   └── lib/icon-markup.ts         # ícones Lucide para o SVG do carimbo (lucide-static)
 │   └── shared/
@@ -115,12 +118,12 @@ foto-geo/
 └── build/                              # ícones do app, config builder (só na fase de empacotamento — §12)
 ```
 
-> **Estado atual (passos 1–6 do §14 concluídos):** esqueleto + IPC, import com leitura de
+> **Estado atual (passos 1–7 do §14 concluídos):** esqueleto + IPC, import com leitura de
 > telemetria, geração do carimbo (`shared/overlay-svg` + `render.service`), preview fiel, o
 > **editor completo** — seção e logo arrastáveis/redimensionáveis, ordem dos campos por DnD e
-> inspector (largura, fonte, espaçamentos, cores, rótulos, visibilidade) — e os **perfis em
-> JSON** (`profile.service` + `ProfileBar`: salvar, abrir, duplicar, excluir, N logos).
-> Falta o `batch.service` (passo 7). Instalação/execução: `REQUISITOS.md §11`.
+> inspector — os **perfis em JSON** (`profile.service` + `ProfileBar`) e a **aplicação em lote**
+> (`batch.service` + `BatchPanel`: pasta de saída, naming, progresso, cancelar, resumo).
+> Falta o empacotamento `.exe` (passo 8). Pontos de atenção: §16. Instalação: `REQUISITOS.md §11`.
 >
 > Os perfis do usuário **não** ficam na pasta do projeto: gravam em `userData`
 > (`%APPDATA%/foto-geo/profiles` no Windows) — §8.
@@ -207,11 +210,17 @@ export interface ProfileSummary { id: string; name: string; filePath: string;
 export interface ProfileFile { id: string; template: Template;
   logo: LogoAsset | null; warnings: string[]; } // avisos = o que caiu no padrão ao carregar
 
-export interface BatchConfig { photos: string[]; outputDir: string; template: Template; }
+export type OutputNaming = 'keep' | 'suffix'   // §9.2: manter nome · ou acrescentar `_geo`
+export interface BatchConfig {
+  photos: string[]; outputDir: string; template: Template;
+  naming: OutputNaming; overwrite: boolean;    // overwrite=false → ignora se já existe
+}
 export interface JobProgress { total: number; processed: number; currentFile: string;
   succeeded: number; skipped: number; failed: number; }
+export interface BatchIssue { file: string; reason: string; skipped: boolean; }
 export interface JobResult  { total: number; succeeded: number; skipped: number;
-  failed: number; outputDir: string; errors: {file:string; reason:string}[]; }
+  failed: number; outputDir: string; canceled: boolean; elapsedMs: number;
+  issues: BatchIssue[]; }                      // sem canal `batch:done`: o resumo volta no invoke
 ```
 
 ---
@@ -228,11 +237,12 @@ export interface JobResult  { total: number; succeeded: number; skipped: number;
 | `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` / `profiles:delete` | R→M invoke | ✅ CRUD de perfis `.json` (§8). `load` devolve o template validado, a logo já em PNG e os avisos; `save` com `id` nulo cria arquivo novo. |
 | `logo:pick` | R→M invoke | ✅ Selecionar PNG/SVG da logo → `LogoAsset` (PNG + proporção). |
 | `logo:read` | R→M invoke | ✅ Recarregar uma logo já referenciada por um perfil (cache por mtime). |
-| `batch:start` / `batch:cancel` | R→M invoke | Rodar/cancelar lote. |
-| `batch:progress` / `batch:done` | M→R send | `JobProgress` / `JobResult`. |
-| `shell:openPath` | R→M invoke | Abrir pasta de saída. |
+| `dialog:pickOutputDir` | R→M invoke | ✅ Pasta de saída do lote (`null` se cancelar). |
+| `batch:start` / `batch:cancel` | R→M invoke | ✅ Rodar/cancelar lote. `start` **resolve com `JobResult`** (não há `batch:done`). |
+| `batch:progress` | M→R send | ✅ Único canal push do app: barra de andamento. |
+| `shell:openPath` | R→M invoke | ✅ Abrir pasta de saída — **só diretório** (arquivo seria executado pelo SO). |
 
-API no preload: `window.fotoGeo = { ping, getAppInfo, pickImages, pickFolder, scanPhotos, getPreviewImage, renderPreview, pickLogo, readLogo, listProfiles, loadProfile, saveProfile, duplicateProfile, deleteProfile, startBatch, cancelBatch, openPath, onProgress, onDone }` — só as cinco últimas (lote) faltam.
+API no preload: `window.fotoGeo = { …, pickOutputDir, startBatch, cancelBatch, openPath, onBatchProgress }`.
 
 O **caminho real** de um arquivo arrastado vem de `window.electron.webUtils.getPathForFile(file)`
 (`@electron-toolkit/preload`): o Electron removeu o `File.path`. O Renderer só manda caminhos;
@@ -412,8 +422,11 @@ foto + Template
    ▼ batch.service     → emite progress; erro num arquivo não aborta o lote
 ```
 
-Concorrência: `p-limit(nº núcleos - 1)`. Original nunca é tocado (RF-10); a saída sai com
-`keepMetadata()`, então a cópia continua com EXIF/GPS.
+Concorrência: `p-limit(min(núcleos − 1, 4))` — o teto **4** existe porque cada composição de
+36 MP mantém ~150 MB em memória; acima disso o ganho some e o risco de OOM sobe (RNF-06).
+Original nunca é tocado (RF-10): a pasta de saída **não pode** ser a das fotos de entrada.
+A saída sai com `keepMetadata()`, então a cópia continua com EXIF/GPS. Nome dos arquivos:
+`keep` (padrão) ou sufixo `_geo`; extensão sempre `.jpg`.
 
 **Medições nas fotos do Lito X1** (8064 × 4536, ~25 MB, WSL):
 
@@ -459,22 +472,22 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 | **Preview ≠ saída** (o maior risco) | ✅ Mitigado na raiz: **o preview exibe o próprio SVG da saída** (§6), gerado por código compartilhado. Verificado: alinhamento dx=0/dy=0 e diferença residual só de anti-aliasing. `preview:render` fica como conferência a qualquer momento. |
 | GPS só no XMP (não no EXIF padrão) | `exif.service` **prioriza o namespace `drone-dji`** (GPS em decimal) e usa o EXIF como fallback; nunca depende só de `GPSImgDirection` (ausente na amostra). |
 | Modelo exibido como `FC9589` | Usar `drone-dji:ProductName` (`Lito X1`); `Make`+`Model` só como fallback. |
-| Arquivos grandes (~25 MB, 8064 px) em lote | `sharp` por streaming + `p-limit(núcleos-1)`; SVG do overlay dimensionado à largura real. |
+| Arquivos grandes (~25 MB, 8064 px) em lote | `sharp` + `p-limit` com **teto 4** (memória ~150 MB/foto); SVG do overlay na largura real. |
 | Perfil de versão antiga (ou editado à mão) deixar o editor num estado impossível | Validação por propriedade com `zod` na leitura, com os limites do inspector: inválido cai no padrão **e avisa na tela**, ausente cai no padrão em silêncio (§8). JSON corrompido aparece na lista como "(ilegível)" em vez de derrubar a lista. |
 | PNG/BMP sem EXIF de GPS (caso secundário) | Mostrar `present[]` por foto (RF-02); regra p/ ausência (a confirmar) — não é o fluxo principal. |
 | Roboto diferente entre tela e Sharp | Embutir `roboto.ttf` em base64 (`@font-face`) no SVG usado pelo Sharp (§9.1). **Enquanto a fonte não entra**, os dois lados caem na sans-serif do sistema; o `librsvg` resolve fonte por **fontconfig**, então a Roboto embarcada exigirá conf própria no empacotamento. |
 | `sharp` dentro do Electron no Linux | Aviso `[SharpElectronLinux]` + ruído de `GLib-GObject` no terminal do WSL (o binário do libvips convive com a GLib do Electron). Funciona, mas é barulhento; o alvo é Windows, onde não ocorre — `REQUISITOS.md §11.3`. |
 | XMP DJI não lido | `exiftool-vendored`. |
 | Módulos nativos no build | `electron-builder` + rebuild; testar `.exe` em Windows real. |
-| Lote grande / memória | `p-limit` + Sharp por streaming. |
+| Lote grande / memória | `p-limit` teto 4 + um lote por vez (segundo `batch:start` é recusado). |
 
 ---
 
 ## 14. Ordem de implementação
 
-> **Estado: 6 de 9 concluídos** (✅ pronto · ⬜ pendente). Este é o placar do projeto —
-> atualizar aqui, no "Estado atual" da §3 e nas marcas do `REQUISITOS.md §4/§5` a cada
-> passo fechado.
+> **Estado: 7 de 9 concluídos** (✅ pronto · ⬜ pendente). Este é o placar do projeto —
+> atualizar aqui, no "Estado atual" da §3, nas marcas do `REQUISITOS.md §4/§5` e no §16
+> a cada passo fechado.
 
 1. ✅ Esqueleto `electron-vite` (React+TS+Tailwind) + IPC básico.
 2. ✅ `exif.service` + `photos:scan` → importar fotos reais do Lito X1 e **listar metadados**.
@@ -490,7 +503,10 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
    `userData/profiles`, cada um com sua logo, e `ProfileBar` com marca de "alterações não
    salvas". Verificado: perfil de versão antiga e JSON corrompido abrem com aviso em vez de
    quebrar, e `id` com `../` é recusado.
-7. ⬜ `batch.service` → lote, progresso, resumo, preservar originais.
+7. ✅ `batch.service` → lote com `p-limit` (teto 4), progresso, cancelar, resumo
+   (sucesso/ignoradas/erro), naming `keep`/`suffix`, pasta de saída ≠ origem. Verificado:
+   42 checagens no serviço (originais intactos, colisão de nome, foto ruim não aborta,
+   cancelar no meio, segundo lote recusado, `openPath` só em diretório).
 8. ⬜ `electron-builder` → `.exe` Windows e teste em máquina real.
 9. ⬜ Fase 2 (mini mapa offline, direção, preenchimento manual, relatório).
 
@@ -515,3 +531,56 @@ Referência para `exif.service.ts`. Extraído das fotos em `drone/`. **Regra:** 
 Outros tags presentes no XMP (não usados no MVP, úteis para Fase 2/diagnóstico): `GpsStatus`, `AltitudeType`, `GimbalPitchDegree`, `GimbalRollDegree`, `FlightPitch/Roll/YawDegree`, `SensorTemperature`, `CameraSerialNumber`, `ShutterType`, `WhiteBalanceCCT`.
 
 > **Atenção:** valores XMP de altitude/ângulo vêm como **string com sinal** (`"+621.504"`, `"-60.30"`) → fazer `parseFloat`. GPS decimal já traz o sinal (S/W negativos) — a conversão para DMS deriva o hemisfério do sinal, dispensando `*Ref` quando se usa o XMP.
+
+---
+
+## 16. Pontos de atenção do projeto
+
+Checklist vivo do que **não pode ser esquecido** ao mexer no código ou no empacotamento.
+Complementa a tabela de riscos (§13); aqui o foco é operacional.
+
+### Produto / dados
+- **Original intocável (RF-10):** a pasta de saída **nunca** pode ser a das fotos de entrada —
+  o `batch.service` recusa antes de gravar. Qualquer atalho novo de “salvar em cima” quebra o
+  contrato.
+- **Preview = saída (RNF-05):** um único SVG (`shared/overlay-svg.ts`). Não redesenhar o
+  carimbo em HTML/CSS no Renderer.
+- **Coords relativas (RNF-04):** posições/tamanhos em fração 0–1 da foto. Fotos da amostra são
+  8064×4536; template tem que funcionar em outras resoluções sem retocar.
+- **Campo sem valor não entra no carimbo:** a caixa encolhe. Foto sem telemetria e sem logo é
+  **ignorada** no lote (não vira recompressão muda).
+- **Nome de saída (§9.2):** padrão `keep` (mesmo nome, outra pasta); opção `suffix` → `_geo`.
+  Extensão **sempre `.jpg`** — entrada PNG/BMP também sai JPEG.
+- **Perfis = arquivo, não rótulo:** o `id` é o nome do `.json`; renomear e salvar **não** cria
+  outro. “Salvar como novo” / “Duplicar” existem para isso. Gravação em `.tmp` + rename.
+- **Logo por caminho:** N perfis = N logos. Logo ausente (drive desconectado) vira **aviso**,
+  mas o caminho permanece no JSON.
+
+### Main / IPC / segurança
+- **Caminhos do Renderer são hostis** (§11): validar extensão, existência e (no caso de
+  perfil) regex do `id` antes de virar path. `shell:openPath` só aceita **diretório**.
+- **Um único canal push:** `batch:progress`. O resumo do lote volta no **mesmo** `invoke` de
+  `batch:start` — não reintroduzir `batch:done` (dois caminhos dessincronizam a UI).
+- **Um lote por vez:** segundo `batch:start` é recusado. Cancelar marca flag; o que já
+  começou termina (cópias parciais ficam na pasta).
+- **Colisão de nome no Windows:** comparar saída em minúsculas (`foto.JPG` ≡ `foto.jpg`).
+  Planejar o mapa de saídas **antes** de gravar, senão duas fotos do lote se sobrescrevem.
+- **Sem console para o usuário (RNF-10):** nenhuma exceção pode escapar do Renderer — a
+  janela fica branca. Hooks (`useBatch`, `useProfiles`, …) engolem e mostram na UI.
+- **Offline (RNF-01):** CSP bloqueia rede em produção. Não adicionar fetch “só pra telemetria”.
+
+### Desempenho / empacotamento (passo 8)
+- **Teto de concorrência = 4**, não `núcleos − 1` puro: ~150 MB/foto × N estourou memória em
+  máquina de muitos núcleos. Medir de novo se mudar o pipeline do Sharp.
+- **Ordem no Sharp:** `resize` roda **antes** de `composite` independentemente da ordem das
+  chamadas. Compor e reduzir no mesmo pipeline quebra — o `renderPreview` usa dois `sharp()`.
+- **`roboto.ttf` ainda não está no repo:** os dois lados caem na sans-serif do sistema.
+  Quando entrar, o Chromium resolve via `@font-face` no SVG, mas o **librsvg usa fontconfig**
+  — no `.exe` pode ser preciso `FONTCONFIG_FILE` apontando para `assets/fonts/`.
+- **Binários nativos:** `sharp` e `exiftool-vendored` precisam dos builds **win-x64** no
+  empacotamento; o `node_modules` do WSL **não** serve no Windows (e o inverso também).
+- **WSL ≠ produto:** DnD do Explorer não chega no WSLg; GPU desligada no Linux; ruído
+  `[SharpElectronLinux]` / `GLib-GObject` é esperado. Validar DnD e o `.exe` no Windows.
+- **Harnesses Electron no Cursor/WSL:** a sessão injeta `ELECTRON_RUN_AS_NODE=1` — scripts
+  descartáveis precisam de `env -u ELECTRON_RUN_AS_NODE electron --no-sandbox …`. Não
+  versionar esses probes.
