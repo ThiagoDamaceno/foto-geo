@@ -3,6 +3,7 @@ import { access, mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
 import pLimitImport from 'p-limit'
 import { formatFieldValue } from '@shared/format'
+import { isDivider } from '@shared/types'
 import type {
   BatchConfig,
   BatchIssue,
@@ -207,7 +208,8 @@ async function processPhoto(
 function hasContentToStamp(photo: PhotoMetadata, template: Template): boolean {
   if (template.logo.filePath) return true
   return template.section.fields.some(
-    (field) => field.visible && Boolean(formatFieldValue(field.key, photo))
+    (item) =>
+      !isDivider(item) && item.visible && Boolean(formatFieldValue(item.key, photo))
   )
 }
 

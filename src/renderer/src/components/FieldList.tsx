@@ -15,26 +15,32 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Eye, EyeOff, GripVertical, Shapes, Tag } from 'lucide-react'
+import { Eye, EyeOff, GripVertical, Minus, Shapes, Tag, Trash2 } from 'lucide-react'
 import { FIELD_LABEL } from '@shared/field-icons'
 import { formatFieldValue } from '@shared/format'
-import type { FieldConfig, FieldKey, PhotoMetadata } from '@shared/types'
+import { itemSortId } from '@shared/section-items'
+import { isDivider } from '@shared/types'
+import type { DividerConfig, FieldConfig, FieldKey, PhotoMetadata, SectionItem } from '@shared/types'
 import { fieldIcon } from '../lib/field-icons'
 
 /**
- * Campos do carimbo: **arrastar reordena** a lista vertical (RF-04) e os botões ligam/desligam
- * o campo, o ícone e o rótulo. A ordem daqui é a ordem do array `section.fields`.
+ * Campos e divisores do carimbo: **arrastar reordena** a lista vertical (RF-04).
+ * A ordem daqui é a ordem do array `section.fields`.
  */
 export default function FieldList({
   fields,
   photo,
   onReorder,
-  onPatch
+  onPatchField,
+  onPatchDivider,
+  onRemoveDivider
 }: {
-  fields: FieldConfig[]
+  fields: SectionItem[]
   photo: PhotoMetadata
   onReorder: (from: number, to: number) => void
-  onPatch: (key: FieldKey, patch: Partial<Omit<FieldConfig, 'key'>>) => void
+  onPatchField: (key: FieldKey, patch: Partial<Omit<FieldConfig, 'key'>>) => void
+  onPatchDivider: (id: string, patch: Partial<Omit<DividerConfig, 'type' | 'id'>>) => void
+  onRemoveDivider: (id: string) => void
 }): React.JSX.Element {
   const sensors = useSensors(
     // 4px de tolerância: clique nos botões não vira arrasto
@@ -46,8 +52,8 @@ export default function FieldList({
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const from = fields.findIndex((field) => field.key === active.id)
-    const to = fields.findIndex((field) => field.key === over.id)
+    const from = fields.findIndex((item) => itemSortId(item) === active.id)
+    const to = fields.findIndex((item) => itemSortId(item) === over.id)
     if (from !== -1 && to !== -1) onReorder(from, to)
   }
 
@@ -58,16 +64,25 @@ export default function FieldList({
       modifiers={[restrictToVerticalAxis]}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext items={fields.map((f) => f.key)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={fields.map(itemSortId)} strategy={verticalListSortingStrategy}>
         <ul className="space-y-1">
-          {fields.map((field) => (
-            <FieldRow
-              key={field.key}
-              field={field}
-              value={formatFieldValue(field.key, photo)}
-              onPatch={onPatch}
-            />
-          ))}
+          {fields.map((item) =>
+            isDivider(item) ? (
+              <DividerRow
+                key={item.id}
+                divider={item}
+                onPatch={onPatchDivider}
+                onRemove={onRemoveDivider}
+              />
+            ) : (
+              <FieldRow
+                key={item.key}
+                field={item}
+                value={formatFieldValue(item.key, photo)}
+                onPatch={onPatchField}
+              />
+            )
+          )}
         </ul>
       </SortableContext>
     </DndContext>
@@ -97,16 +112,11 @@ function FieldRow({
           : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40'
       } ${field.visible ? '' : 'opacity-50'}`}
     >
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        title="Arrastar para reordenar"
-        className="cursor-grab text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-      >
-        <GripVertical className="size-4" aria-hidden />
-      </button>
+      <DragHandle
+        setActivatorNodeRef={setActivatorNodeRef}
+        attributes={attributes}
+        listeners={listeners}
+      />
 
       <Icon className="size-4 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
 
@@ -147,6 +157,88 @@ function FieldRow({
         {field.visible ? <Eye className="size-3.5" aria-hidden /> : <EyeOff className="size-3.5" aria-hidden />}
       </Toggle>
     </li>
+  )
+}
+
+function DividerRow({
+  divider,
+  onPatch,
+  onRemove
+}: {
+  divider: DividerConfig
+  onPatch: (id: string, patch: Partial<Omit<DividerConfig, 'type' | 'id'>>) => void
+  onRemove: (id: string) => void
+}): React.JSX.Element {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: divider.id })
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 text-xs ${
+        isDragging
+          ? 'z-10 border-sky-400 bg-sky-500/10 shadow-lg'
+          : 'border-dashed border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-800/20'
+      } ${divider.visible ? '' : 'opacity-50'}`}
+    >
+      <DragHandle
+        setActivatorNodeRef={setActivatorNodeRef}
+        attributes={attributes}
+        listeners={listeners}
+      />
+
+      <Minus className="size-4 shrink-0 text-slate-400" aria-hidden />
+
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-slate-600 dark:text-slate-300">Divisor</p>
+        <p className="text-[10px] text-slate-400 dark:text-slate-500">linha horizontal</p>
+      </div>
+
+      <Toggle
+        active={divider.visible}
+        onClick={() => onPatch(divider.id, { visible: !divider.visible })}
+        title={divider.visible ? 'Ocultar divisor' : 'Mostrar divisor'}
+      >
+        {divider.visible ? (
+          <Eye className="size-3.5" aria-hidden />
+        ) : (
+          <EyeOff className="size-3.5" aria-hidden />
+        )}
+      </Toggle>
+
+      <button
+        type="button"
+        onClick={() => onRemove(divider.id)}
+        title="Remover divisor"
+        className="rounded p-1 text-slate-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
+      >
+        <Trash2 className="size-3.5" aria-hidden />
+      </button>
+    </li>
+  )
+}
+
+function DragHandle({
+  setActivatorNodeRef,
+  attributes,
+  listeners
+}: {
+  setActivatorNodeRef: (element: HTMLElement | null) => void
+  attributes: ReturnType<typeof useSortable>['attributes']
+  listeners: ReturnType<typeof useSortable>['listeners']
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      ref={setActivatorNodeRef}
+      {...attributes}
+      {...listeners}
+      title="Arrastar para reordenar"
+      className="cursor-grab text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+    >
+      <GripVertical className="size-4" aria-hidden />
+    </button>
   )
 }
 

@@ -126,15 +126,15 @@ export default function BatchPanel({
           </span>
         )}
 
-        <label className="ml-auto flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+        <label className="ml-auto inline-flex items-center gap-2 text-[11px] leading-none text-slate-500 dark:text-slate-400">
           <input
             type="checkbox"
             checked={overwrite}
             disabled={isRunning}
             onChange={(event) => onOverwrite(event.target.checked)}
-            className="size-3.5 accent-sky-600"
+            className="size-3.5 shrink-0 accent-sky-600"
           />
-          Sobrescrever o que já existir na saída
+          <span>Sobrescrever o que já existir na saída</span>
         </label>
       </div>
 

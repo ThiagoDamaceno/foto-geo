@@ -72,6 +72,24 @@ export interface FieldConfig {
 }
 
 /**
+ * Linha divisória horizontal no carimbo (100% da largura útil — entre os paddings).
+ * `id` estável para o DnD; vários divisores podem coexistir.
+ */
+export interface DividerConfig {
+  type: 'divider'
+  id: string
+  visible: boolean
+}
+
+/** Item da lista ordenada da seção: campo de telemetria ou divisor. */
+export type SectionItem = FieldConfig | DividerConfig
+
+/** Discriminante: divisor tem `type: 'divider'`; campo antigo/novo não traz `type`. */
+export function isDivider(item: SectionItem): item is DividerConfig {
+  return (item as DividerConfig).type === 'divider'
+}
+
+/**
  * Seção de dados. Posições e tamanhos são **relativos** (ARQUITETURA.md §7):
  * `x`/`y` em fração da largura/altura da imagem; o resto em fração da **largura**.
  */
@@ -90,7 +108,7 @@ export interface SectionConfig {
   textColor: string
   align: 'left' | 'center' | 'right'
   /** A ORDEM deste array é a ordem vertical (o DnD reordena isto). */
-  fields: FieldConfig[]
+  fields: SectionItem[]
 }
 
 /** Logo com posição e tamanho livres. */

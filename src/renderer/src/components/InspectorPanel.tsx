@@ -1,5 +1,6 @@
-import { ImageUp, RotateCcw, Trash2 } from 'lucide-react'
+import { ImageUp, Minus, RotateCcw, Trash2 } from 'lucide-react'
 import type {
+  DividerConfig,
   FieldConfig,
   FieldKey,
   LogoAsset,
@@ -23,6 +24,9 @@ export default function InspectorPanel({
   onPatchSection,
   onReorderFields,
   onPatchField,
+  onAddDivider,
+  onPatchDivider,
+  onRemoveDivider,
   onPickLogo,
   onRemoveLogo,
   onResizeLogo,
@@ -35,6 +39,9 @@ export default function InspectorPanel({
   onPatchSection: (patch: Partial<SectionConfig>) => void
   onReorderFields: (from: number, to: number) => void
   onPatchField: (key: FieldKey, patch: Partial<Omit<FieldConfig, 'key'>>) => void
+  onAddDivider: () => void
+  onPatchDivider: (id: string, patch: Partial<Omit<DividerConfig, 'type' | 'id'>>) => void
+  onRemoveDivider: (id: string) => void
   onPickLogo: () => void
   onRemoveLogo: () => void
   onResizeLogo: (widthPct: number) => void
@@ -45,9 +52,9 @@ export default function InspectorPanel({
   const px = (pct: number): string => `${Math.round(pct * photo.width)} px`
 
   return (
-    /* rolagem própria e grudado no topo: o canvas é alto e os controles não podem
-       ficar fora de alcance */
-    <aside className="w-full shrink-0 space-y-5 self-start rounded-xl border border-slate-200 bg-white p-4 lg:sticky lg:top-0 lg:max-h-[calc(100vh-9rem)] lg:w-80 lg:overflow-y-auto dark:border-slate-800 dark:bg-slate-900/40">
+    /* coluna direita do workspace: rolagem própria para os controles não sumirem */
+    <aside className="flex h-full min-h-0 w-80 shrink-0 flex-col overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/40">
+      <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Carimbo</h2>
         <button
@@ -138,8 +145,18 @@ export default function InspectorPanel({
           fields={section.fields}
           photo={photo}
           onReorder={onReorderFields}
-          onPatch={onPatchField}
+          onPatchField={onPatchField}
+          onPatchDivider={onPatchDivider}
+          onRemoveDivider={onRemoveDivider}
         />
+        <button
+          type="button"
+          onClick={onAddDivider}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <Minus className="size-3.5" aria-hidden />
+          Adicionar divisor
+        </button>
       </Group>
 
       <Group title="Logo">
@@ -193,6 +210,7 @@ export default function InspectorPanel({
           </button>
         )}
       </Group>
+      </div>
     </aside>
   )
 }

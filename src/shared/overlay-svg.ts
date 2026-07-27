@@ -5,10 +5,11 @@
  * final, e o Renderer exibe o MESMO SVG sobre a foto no editor. Não existe "layout do preview"
  * separado do "layout da saída", o que elimina a maior fonte de divergência (RNF-05/§13).
  */
-import { sectionMetrics, logoBox, type Box, type Size } from './geometry'
+import { sectionMetrics, logoBox, type Box, type SectionRowKind, type Size } from './geometry'
 import { FIELD_LABEL } from './field-icons'
 import { formatFieldValue } from './format'
-import type { FieldKey, PhotoMetadata, Template } from './types'
+import { isDivider } from './types'
+import type { FieldConfig, FieldKey, PhotoMetadata, Template } from './types'
 
 export interface OverlayInput {
   /** Tamanho em px da imagem alvo (real no render final, reduzido no preview). */
@@ -29,22 +30,31 @@ export interface Overlay {
   svg: string
   /** Caixa da seção em px, para o editor desenhar as alças em cima. */
   sectionBox: Box
-  /** Campos que entraram no carimbo desta foto (os sem valor são omitidos). */
-  rows: FieldKey[]
+  /** Campos (com valor) e divisores que entraram no carimbo desta foto. */
+  rows: Array<FieldKey | 'divider'>
 }
+
+type ContentRow =
+  | { kind: 'field'; field: FieldConfig; value: string }
+  | { kind: 'divider' }
 
 export function buildOverlaySvg(input: OverlayInput): Overlay {
   const { size, template, photo, icons } = input
   const { section } = template
 
-  const rows = section.fields
-    .filter((field) => field.visible)
-    .map((field) => ({ field, value: formatFieldValue(field.key, photo) }))
-    .filter((row): row is { field: (typeof section.fields)[number]; value: string } =>
-      Boolean(row.value)
-    )
+  const rows: ContentRow[] = []
+  for (const item of section.fields) {
+    if (!item.visible) continue
+    if (isDivider(item)) {
+      rows.push({ kind: 'divider' })
+      continue
+    }
+    const value = formatFieldValue(item.key, photo)
+    if (value) rows.push({ kind: 'field', field: item, value })
+  }
 
-  const metrics = sectionMetrics(section, size, rows.length)
+  const kinds: SectionRowKind[] = rows.map((row) => row.kind)
+  const metrics = sectionMetrics(section, size, kinds)
   const parts: string[] = []
 
   if (rows.length > 0) {
@@ -53,25 +63,41 @@ export function buildOverlaySvg(input: OverlayInput): Overlay {
     )
   }
 
-  rows.forEach(({ field, value }, index) => {
-    const rowTop = metrics.contentY + index * (metrics.lineHeight + metrics.lineGap)
-    const baseline = rowTop + metrics.lineHeight / 2 + metrics.fontSize * 0.35
-    const iconMarkup = field.showIcon ? icons[field.key] : undefined
+  let rowTop = metrics.contentY
+  const contentWidth = metrics.width - metrics.padding * 2
 
-    if (iconMarkup) {
-      const scale = metrics.iconSize / 24
-      const iconTop = rowTop + (metrics.lineHeight - metrics.iconSize) / 2
+  rows.forEach((row, index) => {
+    const rowHeight = metrics.rowHeights[index] ?? metrics.lineHeight
+
+    if (row.kind === 'divider') {
+      // linha a 100% da largura útil (entre paddings), centrada na faixa do divisor
+      const y = rowTop + rowHeight / 2
+      const stroke = Math.max(metrics.fontSize * 0.08, 1)
       parts.push(
-        `<g transform="translate(${round(metrics.contentX)} ${round(iconTop)}) scale(${round(scale, 4)})" fill="none" stroke="${section.textColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconMarkup}</g>`
+        `<line x1="${round(metrics.contentX)}" y1="${round(y)}" x2="${round(metrics.contentX + contentWidth)}" y2="${round(y)}" stroke="${section.textColor}" stroke-opacity="0.55" stroke-width="${round(stroke)}"/>`
+      )
+    } else {
+      const { field, value } = row
+      const baseline = rowTop + metrics.lineHeight / 2 + metrics.fontSize * 0.35
+      const iconMarkup = field.showIcon ? icons[field.key] : undefined
+
+      if (iconMarkup) {
+        const scale = metrics.iconSize / 24
+        const iconTop = rowTop + (metrics.lineHeight - metrics.iconSize) / 2
+        parts.push(
+          `<g transform="translate(${round(metrics.contentX)} ${round(iconTop)}) scale(${round(scale, 4)})" fill="none" stroke="${section.textColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconMarkup}</g>`
+        )
+      }
+
+      const textX = metrics.contentX + (iconMarkup ? metrics.iconSize + metrics.iconGap : 0)
+      const text = field.showLabel ? `${FIELD_LABEL[field.key]}: ${value}` : value
+
+      parts.push(
+        `<text x="${round(textX)}" y="${round(baseline)}" font-family="${fontStack(section.fontFamily)}" font-size="${round(metrics.fontSize)}" fill="${section.textColor}" xml:space="preserve">${escapeXml(text)}</text>`
       )
     }
 
-    const textX = metrics.contentX + (iconMarkup ? metrics.iconSize + metrics.iconGap : 0)
-    const text = field.showLabel ? `${FIELD_LABEL[field.key]}: ${value}` : value
-
-    parts.push(
-      `<text x="${round(textX)}" y="${round(baseline)}" font-family="${fontStack(section.fontFamily)}" font-size="${round(metrics.fontSize)}" fill="${section.textColor}" xml:space="preserve">${escapeXml(text)}</text>`
-    )
+    rowTop += rowHeight + metrics.lineGap
   })
 
   if (input.logoDataUrl) {
@@ -93,7 +119,7 @@ export function buildOverlaySvg(input: OverlayInput): Overlay {
   return {
     svg,
     sectionBox: { x: metrics.x, y: metrics.y, width: metrics.width, height: metrics.height },
-    rows: rows.map((row) => row.field.key)
+    rows: rows.map((row) => (row.kind === 'divider' ? 'divider' : row.field.key))
   }
 }
 

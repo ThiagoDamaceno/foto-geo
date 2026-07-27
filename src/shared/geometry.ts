@@ -34,9 +34,14 @@ export function clampPct(value: number, max = 1): number {
   return Math.min(Math.max(value, 0), max)
 }
 
+/** Tipo de linha no carimbo (campos e divisores têm alturas diferentes). */
+export type SectionRowKind = 'field' | 'divider'
+
 export interface SectionMetrics extends Box {
   fontSize: number
   lineHeight: number
+  /** Altura reservada para um divisor (a linha em si é mais fina, centrada). */
+  dividerHeight: number
   lineGap: number
   padding: number
   iconSize: number
@@ -45,16 +50,18 @@ export interface SectionMetrics extends Box {
   contentX: number
   contentY: number
   radius: number
+  /** Altura de cada linha na ordem passada (para posicionar no SVG). */
+  rowHeights: number[]
 }
 
 /**
- * Traduz a seção para px de uma imagem de `size`, dado o número de linhas visíveis.
+ * Traduz a seção para px de uma imagem de `size`, dada a sequência de linhas visíveis.
  * A altura é consequência do conteúdo — o usuário controla largura, fonte e espaçamentos.
  */
 export function sectionMetrics(
   section: SectionConfig,
   size: Size,
-  rowCount: number
+  rows: readonly SectionRowKind[]
 ): SectionMetrics {
   const fontSize = pctToPx(section.fontPct, size.width)
   const lineGap = pctToPx(section.lineGapPct, size.width)
@@ -62,10 +69,14 @@ export function sectionMetrics(
   const iconSize = fontSize * 1.15
   const iconGap = fontSize * 0.45
   const lineHeight = Math.max(fontSize, iconSize)
+  const dividerHeight = Math.max(fontSize * 0.45, 2)
 
   const width = pctToPx(section.widthPct, size.width)
+  const rowHeights = rows.map((kind) => (kind === 'divider' ? dividerHeight : lineHeight))
   const contentHeight =
-    rowCount === 0 ? 0 : rowCount * lineHeight + Math.max(rowCount - 1, 0) * lineGap
+    rowHeights.length === 0
+      ? 0
+      : rowHeights.reduce((sum, h) => sum + h, 0) + Math.max(rowHeights.length - 1, 0) * lineGap
   const height = contentHeight + padding * 2
 
   const x = section.x * size.width
@@ -80,13 +91,15 @@ export function sectionMetrics(
     height,
     fontSize,
     lineHeight,
+    dividerHeight,
     lineGap,
     padding,
     iconSize,
     iconGap,
     contentX: x + padding,
     contentY: y + padding,
-    radius
+    radius,
+    rowHeights
   }
 }
 

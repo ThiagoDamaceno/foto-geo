@@ -5,14 +5,17 @@ import { z } from 'zod'
 import { FIELD_ORDER } from '@shared/field-icons'
 import { cloneDefaultTemplate } from '@shared/template-defaults'
 import type {
+  DividerConfig,
   FieldConfig,
   FieldKey,
   LogoConfig,
   ProfileFile,
   ProfileSummary,
   SectionConfig,
+  SectionItem,
   Template
 } from '@shared/types'
+import { isDivider } from '@shared/types'
 import { loadLogoAsset } from './logo.service'
 
 /**
@@ -49,6 +52,12 @@ const fieldSchema = z.object({
   visible: z.boolean(),
   showIcon: z.boolean(),
   showLabel: z.boolean()
+})
+
+const dividerSchema = z.object({
+  type: z.literal('divider'),
+  id: z.string().trim().min(1).max(80),
+  visible: z.boolean()
 })
 
 const nameSchema = z.string().trim().min(1).max(MAX_NAME_LENGTH)
@@ -205,43 +214,55 @@ function parseTemplate(raw: unknown, defaultName: string): { template: Template;
 }
 
 /**
- * A ordem do array é a ordem vertical do carimbo, então ela é preservada como está no
- * arquivo; campos desconhecidos e repetidos saem, e os que faltam entram no fim com o padrão.
+ * A ordem do array é a ordem vertical do carimbo (campos + divisores). Campos desconhecidos
+ * e repetidos saem; campos que faltam entram no fim com o padrão. Divisores inválidos saem.
  */
 function normalizeFields(
   raw: unknown,
-  defaults: FieldConfig[],
+  defaults: SectionItem[],
   warnings: string[]
-): FieldConfig[] {
+): SectionItem[] {
   if (raw === undefined) return defaults
   if (!Array.isArray(raw)) {
     warnings.push('Lista de campos inválida — ordem padrão aplicada.')
     return defaults
   }
 
-  const fields: FieldConfig[] = []
-  const seen = new Set<FieldKey>()
+  const items: SectionItem[] = []
+  const seenFields = new Set<FieldKey>()
+  const seenDividers = new Set<string>()
   let dropped = 0
 
   for (const entry of raw) {
+    if (isRecord(entry) && entry['type'] === 'divider') {
+      const result = dividerSchema.safeParse(entry)
+      if (!result.success || seenDividers.has(result.data.id)) {
+        dropped += 1
+        continue
+      }
+      seenDividers.add(result.data.id)
+      items.push(result.data satisfies DividerConfig)
+      continue
+    }
+
     const result = fieldSchema.safeParse(entry)
-    if (!result.success || seen.has(result.data.key)) {
+    if (!result.success || seenFields.has(result.data.key)) {
       dropped += 1
       continue
     }
-    seen.add(result.data.key)
-    fields.push(result.data)
+    seenFields.add(result.data.key)
+    items.push(result.data)
   }
 
-  if (dropped > 0) warnings.push(`${dropped} campo(s) desconhecido(s) ignorado(s).`)
+  if (dropped > 0) warnings.push(`${dropped} item(ns) desconhecido(s) ignorado(s).`)
 
-  // campo novo em versão futura do app: entra no fim, ligado como no perfil padrão
-  const missing = defaults.filter((field) => !seen.has(field.key))
-  if (missing.length > 0 && fields.length > 0) {
+  const defaultFields = defaults.filter((item): item is FieldConfig => !isDivider(item))
+  const missing = defaultFields.filter((field) => !seenFields.has(field.key))
+  if (missing.length > 0 && items.length > 0) {
     warnings.push(`${missing.length} campo(s) ausente(s) adicionado(s) no fim.`)
   }
 
-  return fields.length > 0 ? [...fields, ...missing] : defaults
+  return items.length > 0 ? [...items, ...missing] : defaults
 }
 
 function assign<T, K extends keyof T>(

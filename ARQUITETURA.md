@@ -157,6 +157,8 @@ export interface FieldConfig {
   showIcon: boolean;       // ícone é FIXO por campo (field-icons.ts); aqui só liga/desliga
   showLabel: boolean;      // "Latitude:" antes do valor?
 }
+export interface DividerConfig { type: 'divider'; id: string; visible: boolean; }
+export type SectionItem = FieldConfig | DividerConfig;  // divisor = linha horizontal no card
 
 export interface SectionConfig {
   // posição/tamanho RELATIVOS à imagem (0..1) — independe da resolução
@@ -172,7 +174,7 @@ export interface SectionConfig {
   bgOpacity: number;       // 0..1
   textColor: string;
   align: 'left' | 'center' | 'right';
-  fields: FieldConfig[];   // ORDEM = ordem vertical (DnD reordena isto)
+  fields: SectionItem[];   // ORDEM = ordem vertical (campos + divisores; DnD)
 }
 
 export interface LogoConfig {

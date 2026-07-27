@@ -1,7 +1,16 @@
 import { useCallback, useState } from 'react'
 import { clampPct } from '@shared/geometry'
+import { createDivider } from '@shared/section-items'
 import { cloneDefaultTemplate } from '@shared/template-defaults'
-import type { FieldConfig, FieldKey, LogoAsset, SectionConfig, Template } from '@shared/types'
+import { isDivider } from '@shared/types'
+import type {
+  DividerConfig,
+  FieldConfig,
+  FieldKey,
+  LogoAsset,
+  SectionConfig,
+  Template
+} from '@shared/types'
 
 export interface TemplateState {
   template: Template
@@ -13,10 +22,14 @@ export interface TemplateState {
   setName: (name: string) => void
   /** Altera uma ou mais propriedades da seção (fonte, cores, espaçamentos). */
   patchSection: (patch: Partial<SectionConfig>) => void
-  /** Nova ordem vertical dos campos (o DnD chama isto — RF-04). */
+  /** Nova ordem vertical dos itens (campos + divisores — o DnD chama isto). */
   reorderFields: (from: number, to: number) => void
   /** Liga/desliga `visible`, `showIcon` ou `showLabel` de um campo. */
   patchField: (key: FieldKey, patch: Partial<Omit<FieldConfig, 'key'>>) => void
+  /** Insere um divisor no fim da lista (dá para arrastar para o lugar certo). */
+  addDivider: () => void
+  patchDivider: (id: string, patch: Partial<Omit<DividerConfig, 'type' | 'id'>>) => void
+  removeDivider: (id: string) => void
   moveLogo: (x: number, y: number) => void
   resizeLogo: (widthPct: number) => void
   setLogoOpacity: (opacity: number) => void
@@ -78,14 +91,49 @@ export function useTemplate(): TemplateState {
         ...current,
         section: {
           ...current.section,
-          fields: current.section.fields.map((field) =>
-            field.key === key ? { ...field, ...patch } : field
+          fields: current.section.fields.map((item) =>
+            isDivider(item) || item.key !== key ? item : { ...item, ...patch }
           )
         }
       }))
     },
     []
   )
+
+  const addDivider = useCallback((): void => {
+    setTemplate((current) => ({
+      ...current,
+      section: {
+        ...current.section,
+        fields: [...current.section.fields, createDivider()]
+      }
+    }))
+  }, [])
+
+  const patchDivider = useCallback(
+    (id: string, patch: Partial<Omit<DividerConfig, 'type' | 'id'>>): void => {
+      setTemplate((current) => ({
+        ...current,
+        section: {
+          ...current.section,
+          fields: current.section.fields.map((item) =>
+            isDivider(item) && item.id === id ? { ...item, ...patch } : item
+          )
+        }
+      }))
+    },
+    []
+  )
+
+  const removeDivider = useCallback((id: string): void => {
+    setTemplate((current) => ({
+      ...current,
+      section: {
+        ...current.section,
+        fields: current.section.fields.filter((item) => !isDivider(item) || item.id !== id)
+      }
+    }))
+  }, [])
 
   const patchLogo = useCallback((patch: Partial<Template['logo']>): void => {
     setTemplate((current) => ({ ...current, logo: { ...current.logo, ...patch } }))
@@ -139,6 +187,9 @@ export function useTemplate(): TemplateState {
     patchSection,
     reorderFields,
     patchField,
+    addDivider,
+    patchDivider,
+    removeDivider,
     moveLogo,
     resizeLogo,
     setLogoOpacity,

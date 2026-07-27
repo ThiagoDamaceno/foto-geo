@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileWarning, Images, Trash2 } from 'lucide-react'
+import { FileWarning } from 'lucide-react'
 import BatchPanel from './components/BatchPanel'
 import EditorCanvas from './components/EditorCanvas'
 import ImportDropzone from './components/ImportDropzone'
@@ -36,6 +36,9 @@ export default function App(): React.JSX.Element {
     patchSection,
     reorderFields,
     patchField,
+    addDivider,
+    patchDivider,
+    removeDivider,
     moveLogo,
     resizeLogo,
     setLogoOpacity,
@@ -76,11 +79,10 @@ export default function App(): React.JSX.Element {
   }, [])
 
   const hasPhotos = photos.length > 0
-  const withError = photos.filter((photo) => photo.error).length
 
   return (
     <div className="flex h-full flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+      <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-3 dark:border-slate-800">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Foto Geo</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -90,95 +92,114 @@ export default function App(): React.JSX.Element {
         <ThemeToggle theme={theme} onToggle={toggle} />
       </header>
 
-      <main className="flex-1 space-y-4 overflow-y-auto p-6">
-        <ImportDropzone
-          isScanning={isScanning}
-          compact={hasPhotos}
-          onDropPaths={(paths) => void importPaths(paths)}
-          onPickImages={() => void pickImages()}
-          onPickFolder={() => void pickFolder()}
-        />
+      <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+        <div className="shrink-0 space-y-3">
+          <ImportDropzone
+            isScanning={isScanning}
+            compact={hasPhotos}
+            onDropPaths={(paths) => void importPaths(paths)}
+            onPickImages={() => void pickImages()}
+            onPickFolder={() => void pickFolder()}
+          />
 
-        {error && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
-            Falha ao importar: {error}
-          </p>
-        )}
+          {error && (
+            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+              Falha ao importar: {error}
+            </p>
+          )}
 
-        {ignored.length > 0 && (
-          <ul className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-            {ignored.map((item) => (
-              <li key={item.filePath} className="flex items-center gap-2">
-                <FileWarning className="size-3.5 shrink-0" aria-hidden />
-                <span className="truncate" title={item.filePath}>
-                  {item.filePath}
-                </span>
-                <span className="shrink-0 opacity-75">— {item.reason}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+          {ignored.length > 0 && (
+            <ul className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              {ignored.map((item) => (
+                <li key={item.filePath} className="flex items-center gap-2">
+                  <FileWarning className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate" title={item.filePath}>
+                    {item.filePath}
+                  </span>
+                  <span className="shrink-0 opacity-75">— {item.reason}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {hasPhotos ? (
           <>
-            <div className="flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                <Images className="size-4" aria-hidden />
-                <strong className="font-semibold">{photos.length}</strong>
-                foto{photos.length > 1 ? 's' : ''} no lote
-                {withError > 0 && (
-                  <span className="text-red-600 dark:text-red-400">
-                    · {withError} com erro de leitura
-                  </span>
+            {selected && (
+              <div className="shrink-0 space-y-3">
+                {logoError && (
+                  <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                    Logo: {logoError}
+                  </p>
                 )}
-              </p>
-              <button
-                type="button"
-                onClick={clear}
-                className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              >
-                <Trash2 className="size-4" aria-hidden />
-                Limpar lote
-              </button>
-            </div>
-
-            {logoError && (
-              <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
-                Logo: {logoError}
-              </p>
-            )}
-
-            {selected && (
-              <ProfileBar
-                profiles={profiles.profiles}
-                activeId={profiles.activeId}
-                name={template.name}
-                isDirty={profiles.isDirty}
-                isBusy={profiles.isBusy}
-                error={profiles.error}
-                warnings={profiles.warnings}
-                onName={setName}
-                onLoad={(id) => void profiles.load(id)}
-                onSave={() => void profiles.save()}
-                onSaveAsNew={() => void profiles.saveAsNew()}
-                onDuplicate={(id) => void profiles.duplicate(id)}
-                onDelete={(id) => void profiles.remove(id)}
-                onNew={profiles.detach}
-                onDismiss={profiles.dismiss}
-              />
-            )}
-
-            {selected && (
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-                <EditorCanvas
-                  photo={selected}
-                  template={template}
-                  logoAsset={logoAsset}
-                  onMoveSection={moveSection}
-                  onResizeSection={resizeSection}
-                  onMoveLogo={moveLogo}
-                  onResizeLogo={resizeLogo}
+                <ProfileBar
+                  profiles={profiles.profiles}
+                  activeId={profiles.activeId}
+                  name={template.name}
+                  isDirty={profiles.isDirty}
+                  isBusy={profiles.isBusy}
+                  error={profiles.error}
+                  warnings={profiles.warnings}
+                  onName={setName}
+                  onLoad={(id) => void profiles.load(id)}
+                  onSave={() => void profiles.save()}
+                  onSaveAsNew={() => void profiles.saveAsNew()}
+                  onDuplicate={(id) => void profiles.duplicate(id)}
+                  onDelete={(id) => void profiles.remove(id)}
+                  onNew={profiles.detach}
+                  onDismiss={profiles.dismiss}
                 />
+              </div>
+            )}
+
+            {/* Imagens | Painel | Menu de edição */}
+            <div className="flex min-h-0 flex-1 gap-3">
+              <MetadataList
+                photos={photos}
+                selectedPath={selected?.filePath ?? null}
+                onSelect={setSelectedPath}
+                onRemove={removePhoto}
+                onClear={clear}
+              />
+
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto">
+                {selected ? (
+                  <EditorCanvas
+                    photo={selected}
+                    template={template}
+                    logoAsset={logoAsset}
+                    onMoveSection={moveSection}
+                    onResizeSection={resizeSection}
+                    onMoveLogo={moveLogo}
+                    onResizeLogo={resizeLogo}
+                  />
+                ) : (
+                  <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    Selecione uma foto na lista à esquerda
+                  </div>
+                )}
+
+                <BatchPanel
+                  photoCount={photos.length}
+                  sampleName={photos[0]?.fileName ?? null}
+                  outputDir={batch.outputDir}
+                  naming={batch.naming}
+                  overwrite={batch.overwrite}
+                  isRunning={batch.isRunning}
+                  progress={batch.progress}
+                  result={batch.result}
+                  error={batch.error}
+                  onPickOutputDir={() => void batch.pickOutputDir()}
+                  onNaming={batch.setNaming}
+                  onOverwrite={batch.setOverwrite}
+                  onStart={() => void batch.start(photos.map((photo) => photo.filePath))}
+                  onCancel={() => void batch.cancel()}
+                  onOpenOutput={() => void batch.openOutput()}
+                  onDismiss={batch.dismiss}
+                />
+              </div>
+
+              {selected ? (
                 <InspectorPanel
                   template={template}
                   photo={selected}
@@ -186,41 +207,21 @@ export default function App(): React.JSX.Element {
                   onPatchSection={patchSection}
                   onReorderFields={reorderFields}
                   onPatchField={patchField}
+                  onAddDivider={addDivider}
+                  onPatchDivider={patchDivider}
+                  onRemoveDivider={removeDivider}
                   onPickLogo={() => void pickLogo()}
                   onRemoveLogo={() => setLogoAsset(null)}
                   onResizeLogo={resizeLogo}
                   onLogoOpacity={setLogoOpacity}
                   onReset={reset}
                 />
-              </div>
-            )}
-
-            {/* o lote usa o carimbo que está na tela; não depende da foto selecionada */}
-            <BatchPanel
-              photoCount={photos.length}
-              sampleName={photos[0]?.fileName ?? null}
-              outputDir={batch.outputDir}
-              naming={batch.naming}
-              overwrite={batch.overwrite}
-              isRunning={batch.isRunning}
-              progress={batch.progress}
-              result={batch.result}
-              error={batch.error}
-              onPickOutputDir={() => void batch.pickOutputDir()}
-              onNaming={batch.setNaming}
-              onOverwrite={batch.setOverwrite}
-              onStart={() => void batch.start(photos.map((photo) => photo.filePath))}
-              onCancel={() => void batch.cancel()}
-              onOpenOutput={() => void batch.openOutput()}
-              onDismiss={batch.dismiss}
-            />
-
-            <MetadataList
-              photos={photos}
-              selectedPath={selected?.filePath ?? null}
-              onSelect={setSelectedPath}
-              onRemove={removePhoto}
-            />
+              ) : (
+                <aside className="flex w-80 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  Menu de edição
+                </aside>
+              )}
+            </div>
           </>
         ) : (
           !isScanning && (
