@@ -6,6 +6,7 @@ import ImportDropzone from './components/ImportDropzone'
 import InspectorPanel from './components/InspectorPanel'
 import MetadataList from './components/MetadataList'
 import ProfileBar from './components/ProfileBar'
+import HelpButton from './components/HelpButton'
 import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './lib/theme'
 import { useBatch } from './state/useBatch'
@@ -88,10 +89,13 @@ export default function App(): React.JSX.Element {
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Foto Geo</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Carimbo de telemetria em lote · 100% offline
+            Carimbo de telemetria em lote
           </p>
         </div>
-        <ThemeToggle theme={theme} onToggle={toggle} />
+        <div className="flex items-center gap-2">
+          <HelpButton />
+          <ThemeToggle theme={theme} onToggle={toggle} />
+        </div>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
@@ -174,6 +178,7 @@ export default function App(): React.JSX.Element {
                     onResizeSection={resizeSection}
                     onMoveLogo={moveLogo}
                     onResizeLogo={resizeLogo}
+                    onRemoveLogo={removeLogo}
                   />
                 ) : (
                   <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
