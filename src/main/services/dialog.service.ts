@@ -41,7 +41,9 @@ export async function pickLogo(parent: BrowserWindow | null): Promise<LogoAsset 
     title: 'Selecionar logo',
     buttonLabel: 'Usar',
     properties: ['openFile'],
-    filters: [{ name: 'Logo (PNG/SVG)', extensions: LOGO_EXTENSIONS.map((e) => e.slice(1)) }]
+    filters: [
+      { name: 'Logo (PNG, SVG, WebP, JPEG…)', extensions: LOGO_EXTENSIONS.map((e) => e.slice(1)) }
+    ]
   })
 
   return file ? loadLogoAsset(file) : null

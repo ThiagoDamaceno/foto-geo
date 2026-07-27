@@ -114,6 +114,15 @@ export default function InspectorPanel({
           hint={section.radiusPct === 0 ? 'reto' : px(section.radiusPct)}
           onChange={(radiusPct) => onPatchSection({ radiusPct })}
         />
+        <label className="inline-flex items-center gap-2 text-xs leading-none text-slate-600 dark:text-slate-300">
+          <input
+            type="checkbox"
+            checked={section.showBorder}
+            onChange={(event) => onPatchSection({ showBorder: event.target.checked })}
+            className="size-3.5 shrink-0 accent-sky-600"
+          />
+          <span>Borda do card</span>
+        </label>
       </Group>
 
       <Group title="Cores">
@@ -206,7 +215,7 @@ export default function InspectorPanel({
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <ImageUp className="size-4" aria-hidden />
-            Escolher logo (PNG/SVG)
+            Escolher logo (PNG, SVG, WebP…)
           </button>
         )}
       </Group>

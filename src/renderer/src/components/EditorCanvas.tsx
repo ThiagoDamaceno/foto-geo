@@ -215,7 +215,7 @@ export default function EditorCanvas({
           exatamente sobre a imagem, sem faixa preta para desalinhar as porcentagens. */}
       <div className="flex justify-center">
         {image ? (
-          <div ref={frameRef} className="relative w-fit overflow-hidden rounded-lg">
+          <div ref={frameRef} className="relative w-fit overflow-hidden">
             <img
               src={image.dataUrl}
               alt=""
@@ -253,7 +253,7 @@ export default function EditorCanvas({
           </div>
         ) : (
           <div
-            className="flex max-h-[58vh] w-full items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-800"
+            className="flex max-h-[58vh] w-full items-center justify-center bg-slate-200 dark:bg-slate-800"
             style={{ aspectRatio: `${photo.width || 16} / ${photo.height || 9}` }}
           >
             <Loader2 className="size-6 animate-spin text-slate-400" aria-hidden />

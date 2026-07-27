@@ -20,7 +20,7 @@ export interface OverlayInput {
   icons: Partial<Record<FieldKey, string>>
   /** `data:font/ttf;base64,…` da Roboto embarcada, quando disponível (§9.1). */
   fontDataUrl?: string
-  /** Logo já convertida em data URI (PNG/SVG). */
+  /** Logo já convertida em data URI PNG (origem pode ser SVG/WebP/etc.). */
   logoDataUrl?: string
   /** largura/altura da logo — define a altura da caixa. */
   logoAspectRatio?: number
@@ -57,9 +57,16 @@ export function buildOverlaySvg(input: OverlayInput): Overlay {
   const metrics = sectionMetrics(section, size, kinds)
   const parts: string[] = []
 
+  // mesma espessura do divisor (e da borda do card, quando ligada)
+  const lineStroke = Math.max(metrics.fontSize * 0.08, 1)
+
   if (rows.length > 0) {
+    const border =
+      section.showBorder
+        ? ` stroke="${section.textColor}" stroke-opacity="0.55" stroke-width="${round(lineStroke)}"`
+        : ''
     parts.push(
-      `<rect x="${round(metrics.x)}" y="${round(metrics.y)}" width="${round(metrics.width)}" height="${round(metrics.height)}" rx="${round(metrics.radius)}" fill="${section.bgColor}" fill-opacity="${section.bgOpacity}"/>`
+      `<rect x="${round(metrics.x)}" y="${round(metrics.y)}" width="${round(metrics.width)}" height="${round(metrics.height)}" rx="${round(metrics.radius)}" fill="${section.bgColor}" fill-opacity="${section.bgOpacity}"${border}/>`
     )
   }
 
@@ -72,9 +79,8 @@ export function buildOverlaySvg(input: OverlayInput): Overlay {
     if (row.kind === 'divider') {
       // linha a 100% da largura útil (entre paddings), centrada na faixa do divisor
       const y = rowTop + rowHeight / 2
-      const stroke = Math.max(metrics.fontSize * 0.08, 1)
       parts.push(
-        `<line x1="${round(metrics.contentX)}" y1="${round(y)}" x2="${round(metrics.contentX + contentWidth)}" y2="${round(y)}" stroke="${section.textColor}" stroke-opacity="0.55" stroke-width="${round(stroke)}"/>`
+        `<line x1="${round(metrics.contentX)}" y1="${round(y)}" x2="${round(metrics.contentX + contentWidth)}" y2="${round(y)}" stroke="${section.textColor}" stroke-opacity="0.55" stroke-width="${round(lineStroke)}"/>`
       )
     } else {
       const { field, value } = row

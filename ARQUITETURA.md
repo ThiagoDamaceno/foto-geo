@@ -170,6 +170,7 @@ export interface SectionConfig {
   lineGapPct: number;      // espaçamento entre linhas
   paddingPct: number;
   radiusPct: number;       // raio dos cantos do card / largura da imagem (0 = reto)
+  showBorder: boolean;     // contorno na cor do texto, mesma espessura do divisor
   bgColor: string;         // ex. "#000000"
   bgOpacity: number;       // 0..1
   textColor: string;
@@ -339,6 +340,7 @@ N perfis = **um arquivo `.json` por perfil**, e a logo é **referenciada por cam
     "lineGapPct": 0.010,
     "paddingPct": 0.012,
     "radiusPct": 0.005,
+    "showBorder": false,
     "bgColor": "#000000", "bgOpacity": 0.55,
     "textColor": "#FFFFFF",
     "align": "left",

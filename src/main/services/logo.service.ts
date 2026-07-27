@@ -1,17 +1,18 @@
 import { stat } from 'node:fs/promises'
 import { extname, isAbsolute, resolve } from 'node:path'
 import sharp from 'sharp'
+import { isSupportedLogo, LOGO_EXTENSIONS } from '@shared/image-formats'
 import type { LogoAsset } from '@shared/types'
 
 /**
  * Logo do carimbo (RF-06).
  *
- * Tudo é convertido para **PNG** aqui, inclusive SVG: o preview (Chromium) e a saída
- * (librsvg/Sharp) rasterizam SVG aninhado de formas diferentes, então entregar o mesmo PNG
- * aos dois lados é o que mantém preview = arquivo (RNF-05).
+ * Tudo é convertido para **PNG** aqui (PNG/JPEG/WebP/BMP/TIFF/SVG…): o preview (Chromium)
+ * e a saída (librsvg/Sharp) rasterizam SVG aninhado de formas diferentes, então entregar o
+ * mesmo PNG aos dois lados é o que mantém preview = arquivo (RNF-05).
  */
 
-export const LOGO_EXTENSIONS = ['.png', '.svg']
+export { LOGO_EXTENSIONS }
 
 /** Largura máxima do PNG gerado — a logo ocupa ~15% de uma foto de 8064 px. */
 const MAX_LOGO_WIDTH = 1600
@@ -28,8 +29,8 @@ export async function loadLogoAsset(rawPath: string): Promise<LogoAsset> {
   }
 
   const filePath = resolve(rawPath)
-  if (!LOGO_EXTENSIONS.includes(extname(filePath).toLowerCase())) {
-    throw new Error('A logo precisa ser PNG ou SVG')
+  if (!isSupportedLogo(filePath)) {
+    throw new Error('Formato de logo não suportado (use PNG, SVG, WebP, JPEG…)')
   }
 
   const { mtimeMs } = await stat(filePath)

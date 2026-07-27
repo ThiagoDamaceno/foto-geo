@@ -103,6 +103,8 @@ export interface SectionConfig {
   paddingPct: number
   /** Raio dos cantos do card / largura da imagem (0 = retângulo). */
   radiusPct: number
+  /** Contorno do card na cor do texto, mesma espessura do divisor. */
+  showBorder: boolean
   bgColor: string
   bgOpacity: number
   textColor: string
@@ -247,7 +249,7 @@ export interface FotoGeoApi {
   scanPhotos: (paths: string[]) => Promise<ScanResult>
   /** Versão reduzida da foto para o fundo do editor. */
   getPreviewImage: (filePath: string, maxWidth: number) => Promise<PreviewImage>
-  /** Seletor de logo (PNG/SVG); `null` se o usuário cancelar. */
+  /** Seletor de logo (PNG/SVG/WebP/JPEG…); `null` se o usuário cancelar. */
   pickLogo: () => Promise<LogoAsset | null>
   /** Recarrega uma logo já referenciada por um perfil. */
   readLogo: (filePath: string) => Promise<LogoAsset>

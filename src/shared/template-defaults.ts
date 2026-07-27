@@ -21,6 +21,7 @@ export const DEFAULT_TEMPLATE: Template = {
     paddingPct: 0.01,
     /** Equivalente ao antigo `fontSize * 0.35` do geometry. */
     radiusPct: 0.005,
+    showBorder: false,
     bgColor: '#000000',
     bgOpacity: 0.55,
     textColor: '#FFFFFF',
