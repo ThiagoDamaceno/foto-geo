@@ -118,15 +118,11 @@ foto-geo/
 └── build/                              # ícones do app, config builder (só na fase de empacotamento — §12)
 ```
 
-> **Estado atual (passos 1–7 do §14 concluídos):** esqueleto + IPC, import com leitura de
-> telemetria, geração do carimbo (`shared/overlay-svg` + `render.service`), preview fiel, o
-> **editor completo** — seção e logo arrastáveis/redimensionáveis, ordem dos campos por DnD e
-> inspector — os **perfis em JSON** (`profile.service` + `ProfileBar`) e a **aplicação em lote**
-> (`batch.service` + `BatchPanel`: pasta de saída, naming, progresso, cancelar, resumo).
-> Falta o empacotamento `.exe` (passo 8). Pontos de atenção: §16. Instalação: `REQUISITOS.md §11`.
+> **Estado atual (passos 1–8 do §14):** MVP completo + empacotamento Windows (`yarn dist:win` →
+> `dist/`: portable + zip). Falta só a Fase 2 (passo 9). Pontos de atenção: §16. Instalação:
+> `REQUISITOS.md §11`.
 >
-> Os perfis ficam em `profiles/` **ao lado do executável** (app portátil); em dev, na
-> raiz do repositório — §8.
+> Os perfis ficam em `userData/profiles` (`%APPDATA%\foto-geo\profiles` no Windows) — §8.
 >
 > `SectionElement`/`LogoElement`/`FieldRow` não viraram arquivos próprios: como a parte visual
 > é o SVG, sobrou uma alça genérica (`DragBox`, dentro do `EditorCanvas`) usada pelos dois
@@ -365,7 +361,7 @@ N perfis = **um arquivo `.json` por perfil**, e a logo é **referenciada por cam
 }
 ```
 
-**Onde ficam.** Em `profiles/` **ao lado do executável** (modo portátil). Em desenvolvimento, a mesma pasta na raiz do repositório. Se a pasta do exe não for gravável (ex.: Program Files), cai em `userData/profiles`. O portable do electron-builder usa `PORTABLE_EXECUTABLE_DIR`. Logos sob a raiz do app são gravadas com caminho **relativo**; arquivo ausente gera aviso e o path permanece no JSON.
+**Onde ficam.** Em `userData/profiles` — no Windows, `%APPDATA%\foto-geo\profiles`. Em desenvolvimento, o `userData` do Electron (não a pasta do repositório). O `.exe` portable pode ficar solto; os perfis ficam no perfil do usuário. Logos sob a raiz do app são gravadas com caminho **relativo**; arquivo ausente gera aviso e o path permanece no JSON.
 
 **Identidade.** O perfil é identificado pelo **nome do arquivo** (`id`), gerado do nome na primeira gravação (`Obra São João` → `obra-sao-joao.json`), com sufixo numérico quando já existe. Consequência de projeto: **renomear e salvar não cria arquivo novo** — para isso existe o "Salvar como novo". O `id` que vem do Renderer é validado contra `/^[a-z0-9][a-z0-9-]{0,60}$/` antes de virar caminho, o que barra `../` (§11).
 
@@ -463,15 +459,14 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 
 ---
 
-## 12. Empacotamento (Windows)
+## 12. Empacotamento (Windows) ✅
 
-> **Postergado:** o `electron-builder` não está no projeto por enquanto — o ciclo de
-> desenvolvimento é só `yarn dev` até o MVP fechar (passo 8 do §14). O que retomar está em
-> `REQUISITOS.md §11.5`.
-
-- `electron-builder`: target **nsis** (instalador) e **portable** (`.exe` duplo clique).
-- Empacotar binários win-x64 de `sharp` e `exiftool-vendored`; incluir `assets/icons`.
-- Ícone + metadados do app; (opcional) assinatura p/ SmartScreen.
+- `electron-builder.yml`: targets **portable** + **zip** (win-x64). Saída em `dist/`.
+- **Linux/WSL:** Docker Compose (`electronuserland/builder:24-wine`) — `yarn dist:win` /
+  `./scripts/dist-win.sh`. Volume isolado de `node_modules` win32.
+- **Windows nativo:** `.\scripts\dist-win.ps1` / `yarn dist:win:native`.
+- `asarUnpack` de `sharp` / `@img` / `exiftool-vendored*`; `assets/` no pacote.
+- Ícone opcional em `build/icon.ico`. Sem assinatura de código por enquanto (SmartScreen).
 
 ---
 
@@ -495,7 +490,7 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 
 ## 14. Ordem de implementação
 
-> **Estado: 7 de 9 concluídos** (✅ pronto · ⬜ pendente). Este é o placar do projeto —
+> **Estado: 8 de 9 concluídos** (✅ pronto · ⬜ pendente). Este é o placar do projeto —
 > atualizar aqui, no "Estado atual" da §3, nas marcas do `REQUISITOS.md §4/§5` e no §16
 > a cada passo fechado.
 
@@ -510,14 +505,15 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 5. ✅ Editor completo: campos com DnD (`@dnd-kit`), inspector (largura, fonte, espaçamentos,
    cores, rótulos, visibilidade) e logo PNG/SVG com posição/tamanho livres.
 6. ✅ `profile.service` (JSON + validação Zod) → salvar/abrir/duplicar/excluir perfis em
-   `profiles/` (ao lado do exe), cada um com sua logo, e `ProfileBar` com marca de "alterações não
+   `%APPDATA%\foto-geo\profiles`, cada um com sua logo, e `ProfileBar` com marca de "alterações não
    salvas". Verificado: perfil de versão antiga e JSON corrompido abrem com aviso em vez de
    quebrar, e `id` com `../` é recusado.
 7. ✅ `batch.service` → lote com `p-limit` (teto 4), progresso, cancelar, resumo
    (sucesso/ignoradas/erro), naming `keep`/`suffix`, pasta de saída ≠ origem. Verificado:
    42 checagens no serviço (originais intactos, colisão de nome, foto ruim não aborta,
    cancelar no meio, segundo lote recusado, `openPath` só em diretório).
-8. ⬜ `electron-builder` → `.exe` Windows e teste em máquina real.
+8. ✅ `electron-builder` → portable + zip win-x64 (`yarn dist:win` / Docker). **Validar o
+   `.exe` em Windows 10/11 real** (sharp, lote, logos).
 9. ⬜ Fase 2 (mini mapa offline, direção, preenchimento manual, relatório).
 
 ---

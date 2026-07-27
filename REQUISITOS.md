@@ -103,7 +103,7 @@ Ajustáveis pelo usuário:
 - Salvar **todas as configurações** (seção, campos, ordem, fonte, posições, logo) em um **arquivo JSON** por perfil.
 - Suportar **N perfis** (ex.: um por cliente/obra), cada um podendo referenciar sua **própria logo** (N logos).
 - Carregar/editar/duplicar perfis — e excluir, com confirmação em dois toques.
-- Os arquivos ficam em `profiles/` ao lado do executável (app portátil) — `ARQUITETURA.md §8`.
+- Os arquivos ficam em `%APPDATA%\foto-geo\profiles` (Windows) — `ARQUITETURA.md §8`.
 - A barra de perfis mostra **"alterações não salvas"**; "Salvar" sobrescreve o perfil aberto e
   "Salvar como novo" cria outro arquivo (renomear **não** duplica o perfil).
 - Perfil de versão antiga ou editado à mão abre com o que é válido: valor inválido volta ao
@@ -129,7 +129,7 @@ Ajustáveis pelo usuário:
 | ID | Requisito | Situação |
 |----|-----------|----------|
 | RNF-01 | 100% **offline** (sem rede na função principal). | ✅ nenhuma chamada de rede; CSP bloqueia |
-| RNF-02 | **Windows** `.exe`, duplo clique, sem runtime externo. | ⬜ empacotamento é o passo 8 |
+| RNF-02 | **Windows** `.exe`, duplo clique, sem runtime externo. | 🔶 `yarn dist:win` gera portable/zip — validar em Win real |
 | RNF-03 | Não modifica originais. | ✅ sempre gera cópia |
 | RNF-04 | **Independência de resolução:** o mesmo template funciona em fotos de tamanhos diferentes (posições/tamanhos relativos — ver `ARQUITETURA.md §7`). | ✅ tudo relativo, verificado |
 | RNF-05 | **Fidelidade preview↔saída:** o que se vê no editor é o que é gerado. | ✅ preview usa o SVG da saída |
@@ -150,7 +150,7 @@ Ajustáveis pelo usuário:
      • campos: ordem (DnD), ícones, quais mostrar
      • logo: importar PNG/SVG e arrastar livre
 3. Ver preview ao vivo sobre uma foto real
-4. Salvar perfil (.json — em profiles/ ao lado do exe)
+4. Salvar perfil (.json — em %APPDATA%\foto-geo\profiles)
 5. [PROCESSAR] → aplica a todas as fotos → pasta de saída
 6. Resumo + abrir pasta
 ```
@@ -159,7 +159,7 @@ Ajustáveis pelo usuário:
 
 ## 7. Modelo de configuração (resumo — detalhe em ARQUITETURA §8)
 
-Tudo salvo em **JSON** com valores **relativos** (0–1) para posição/tamanho, mais a **ordem** dos campos e referência ao arquivo de logo. N perfis = N arquivos `.json` em `profiles/` (ao lado do executável).
+Tudo salvo em **JSON** com valores **relativos** (0–1) para posição/tamanho, mais a **ordem** dos campos e referência ao arquivo de logo. N perfis = N arquivos `.json` em `%APPDATA%\foto-geo\profiles`.
 
 ---
 
@@ -303,10 +303,18 @@ Linux, ou rodando o app no Windows. O import por **botão/seletor** cobre o rest
 Binários instalados no WSL/Linux valem só para desenvolvimento — o `.exe` final exige os
 binários **win-x64**, baixados/reconstruídos no Windows na etapa de empacotamento.
 
-### 11.6 Empacotamento — postergado
+### 11.6 Empacotamento Windows
 
-O `electron-builder` foi removido do projeto por ora (só `yarn dev` até o MVP fechar).
-Para retomar (`ARQUITETURA.md §12`, passo 8 do §14): adicionar `electron-builder` em
-`devDependencies`, recriar o `electron-builder.yml` (targets **nsis** + **portable**, x64,
-`asarUnpack` dos módulos nativos, `assets/` em `extraResources`), a pasta `build/` com o
-`icon.ico` e rodar `electron-builder --win` **no Windows**.
+```bash
+# WSL/Linux (Docker)
+yarn dist:win
+# ou ./scripts/dist-win.sh
+
+# Windows nativo
+yarn dist:win
+# ou .\scripts\dist-win.ps1
+```
+
+Artefatos em `dist/`: `*-portable.exe` e `*-win-x64.zip`. Config: `electron-builder.yml`,
+Compose: `docker-compose.yml`. Ícone opcional: `build/icon.ico`. Validar o executável em
+máquina Windows real antes de distribuir.

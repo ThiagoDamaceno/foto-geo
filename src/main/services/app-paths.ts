@@ -1,10 +1,11 @@
-import { access, mkdir, unlink, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { app } from 'electron'
 
 /**
- * Raiz do app portátil (ao lado do .exe) ou do repositório em dev.
- * `PORTABLE_EXECUTABLE_DIR` vem do electron-builder portable.
+ * Raiz do app (ao lado do .exe / pasta do portable) ou do repositório em dev.
+ * Usada para resolver logos com path relativo. `PORTABLE_EXECUTABLE_DIR` vem do
+ * electron-builder portable.
  */
 export function appRootDir(): string {
   const portableDir = process.env.PORTABLE_EXECUTABLE_DIR
@@ -23,30 +24,24 @@ export function appRootDir(): string {
 let profilesDirCache: string | null = null
 
 /**
- * Pasta `profiles/`: prefere ao lado do exe; se não for gravável (ex.: Program Files),
- * cai em `userData/profiles`.
+ * Pasta dos perfis `.json` em `userData/profiles`
+ * (Windows: `%APPDATA%\<nome-do-app>\profiles`).
  */
 export async function profilesDir(): Promise<string> {
   if (profilesDirCache) return profilesDirCache
 
-  const preferred = join(appRootDir(), 'profiles')
-  if (await canUseProfilesDir(preferred)) {
-    profilesDirCache = preferred
-    return preferred
-  }
-
-  const fallback = join(app.getPath('userData'), 'profiles')
-  await mkdir(fallback, { recursive: true })
-  profilesDirCache = fallback
-  return fallback
+  const dir = join(app.getPath('userData'), 'profiles')
+  await mkdir(dir, { recursive: true })
+  profilesDirCache = dir
+  return dir
 }
 
-/** Caminho síncrono após `profilesDir()` ter sido chamado; senão, o preferido. */
+/** Caminho síncrono após `profilesDir()` ter sido chamado; senão, o padrão. */
 export function profilesDirPath(): string {
-  return profilesDirCache ?? join(appRootDir(), 'profiles')
+  return profilesDirCache ?? join(app.getPath('userData'), 'profiles')
 }
 
-/** Path gravado no JSON: relativo à raiz do app quando possível (kit portátil). */
+/** Path gravado no JSON: relativo à raiz do app quando possível. */
 export function toStoredLogoPath(filePath: string): string {
   const absolute = resolveLogoPath(filePath)
   const rel = relative(appRootDir(), absolute)
@@ -62,17 +57,4 @@ export function resolveLogoPath(filePath: string): string {
     throw new Error('Caminho de logo inválido')
   }
   return isAbsolute(filePath) ? resolve(filePath) : resolve(appRootDir(), filePath)
-}
-
-async function canUseProfilesDir(dir: string): Promise<boolean> {
-  try {
-    await mkdir(dir, { recursive: true })
-    const probe = join(dir, `.write-probe-${process.pid}`)
-    await writeFile(probe, 'ok', 'utf8')
-    await unlink(probe)
-    await access(dir)
-    return true
-  } catch {
-    return false
-  }
 }

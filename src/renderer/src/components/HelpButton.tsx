@@ -134,9 +134,10 @@ export default function HelpButton(): React.JSX.Element {
                   versão já salva no disco.
                 </p>
                 <p className="mt-1.5">
-                  Arquivos em <Kbd>profiles/</Kbd> ao lado do executável (em desenvolvimento, na pasta
-                  do projeto). Caminhos de logo dentro da pasta do app são salvos relativos — o kit
-                  portátil se move junto. Se o arquivo sumir, o perfil mantém a referência e avisa.
+                  Arquivos em <Kbd>%APPDATA%\foto-geo\profiles</Kbd> (Windows) — pasta de dados do
+                  app, não ao lado do .exe. Em desenvolvimento, no <Kbd>userData</Kbd> do Electron.
+                  Logos com path sob a pasta do app podem ser salvos relativos. Se o arquivo sumir, o
+                  perfil mantém a referência e avisa.
                 </p>
               </Section>
 

@@ -1,0 +1,55 @@
+appId: com.brtk.foto-geo
+productName: Foto Geo
+copyright: Copyright © BRTK
+
+directories:
+  output: dist
+  buildResources: build
+
+# electron-vite emite em out/
+files:
+  - out/**/*
+  - package.json
+  - assets/**/*
+  - '!**/*.{md,map}'
+  - '!**/node_modules/*/{CHANGELOG.md,README.md,readme.md}'
+  # build no Docker (linux) — não embutir nativos do host no .exe Windows
+  - '!**/node_modules/@img/sharp-linux*/**'
+  - '!**/node_modules/@img/sharp-libvips-linux*/**'
+  - '!**/node_modules/@img/sharp-darwin*/**'
+  - '!**/node_modules/@img/sharp-linuxmusl*/**'
+  - '!**/node_modules/@img/sharp-libvips-darwin*/**'
+  - '!**/node_modules/exiftool-vendored.pl/**'
+
+asar: true
+
+# nativos precisam ficar fora do asar
+asarUnpack:
+  - '**/node_modules/sharp/**'
+  - '**/node_modules/@img/**'
+  - '**/node_modules/exiftool-vendored/**'
+  - '**/node_modules/exiftool-vendored.exe/**'
+
+extraMetadata:
+  main: out/main/index.js
+
+# sharp 0.35 usa prebuilds (@img/*) — rebuild via node-gyp no Wine só atrapalha
+npmRebuild: false
+nodeGypRebuild: false
+
+win:
+  executableName: FotoGeo
+  artifactName: FotoGeo-${version}-win-${arch}.${ext}
+  target:
+    - target: portable
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+
+portable:
+  artifactName: FotoGeo-${version}-win-${arch}-portable.${ext}
+
+# sem assinatura por enquanto (SmartScreen pode alertar)
+forceCodeSigning: false

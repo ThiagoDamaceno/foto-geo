@@ -3,9 +3,9 @@
 Editor visual de carimbo de telemetria para fotos de drone + aplicação em lote.
 Desktop Windows, **100% offline**.
 
-**Progresso: 7 de 9 passos** (`ARQUITETURA.md §14`) — MVP funcional (import → editor → perfis →
-lote); falta o empacotamento `.exe`. Estado por requisito nas marcas ✅/🔶/⬜ do
-`REQUISITOS.md §4` e `§5`. Pontos de atenção do projeto: `ARQUITETURA.md §16`.
+**Progresso: 8 de 9 passos** (`ARQUITETURA.md §14`) — MVP + empacotamento Windows (portable/zip
+via Docker ou nativo). Estado por requisito nas marcas ✅/🔶/⬜ do `REQUISITOS.md §4` e `§5`.
+Pontos de atenção: `ARQUITETURA.md §16`.
 
 - **O que é / o que faz:** `REQUISITOS.md`
 - **Como é construído:** `ARQUITETURA.md`
@@ -59,8 +59,48 @@ rodando no Windows). Detalhes em `REQUISITOS.md §11.4`.
 |---------|-----------|
 | `yarn dev` | Sobe o app em desenvolvimento (HMR no Renderer). |
 | `yarn dev:watch` | Idem, reiniciando o processo Main a cada alteração. |
+| `yarn build` | Compila main/preload/renderer em `out/` (sem empacotar). |
 | `yarn typecheck` | `tsc` nos dois projetos (`node` = main/preload, `web` = renderer). |
+| `yarn dist:win` | Gera `.exe` portable + `.zip` em `dist/` (Docker no Linux/WSL; nativo no Windows). |
+| `yarn dist:win:docker` | Força o caminho Docker Compose (WSL/Linux). |
+| `yarn dist:win:native` | Força o script PowerShell (só Windows). |
 | `FOTOGEO_DEVTOOLS=1 yarn dev` | Único jeito de abrir o DevTools — F12/console estão desativados (RNF-10). |
+
+### Empacotar para Windows (portable + zip)
+
+Saída sempre em **`dist/`** na raiz do repo.
+
+**No WSL / Linux** (precisa Docker com Compose; imagem `electronuserland/builder:24-wine`):
+
+```bash
+yarn dist:win
+# ou
+./scripts/dist-win.sh
+```
+
+Se mudou a imagem Node e o install falhar de novo, limpe o volume do builder:
+
+```bash
+docker compose down
+docker volume rm drone_foto-geo-win-node-modules 2>/dev/null || true
+yarn dist:win
+```
+
+**No Windows 10/11** (Node + Yarn instalados):
+
+```powershell
+yarn dist:win
+# ou
+.\scripts\dist-win.ps1
+```
+
+Artefatos típicos:
+
+- `FotoGeo-<versão>-win-x64-portable.exe` — duplo clique, portátil
+- `FotoGeo-<versão>-win-x64.zip` — pasta unpacked
+
+Coloque `build/icon.ico` se quiser ícone próprio. Teste o resultado numa máquina Windows real
+(sharp + lote).
 
 ## Convenções de UI
 
@@ -69,9 +109,6 @@ rodando no Windows). Detalhes em `REQUISITOS.md §11.4`.
   das duas variantes (`dark:` do Tailwind).
 - **Sem console para o usuário** (RNF-10): F12, `Ctrl+Shift+I/J/C`, reload e zoom por
   teclado bloqueados; menu nativo removido — `src/main/shortcuts.ts`.
-
-> Empacotamento (`.exe` NSIS/portátil) está **postergado** até o MVP fechar —
-> `REQUISITOS.md §11.6` e `ARQUITETURA.md §12`.
 
 ## Estrutura
 
@@ -114,7 +151,7 @@ assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pend
 3. **Posicionar uma logo** (PNG ou SVG) livremente sobre a foto, com largura e opacidade.
 4. **Visualizar a saída** com o botão *Visualizar*: carimba a foto em tamanho real
    (8064 × 4536 em ~1,1 s) e mostra o resultado; *Editar* (lápis) volta às alças.
-5. **Guardar em perfis** (`.json` em `profiles/` ao lado do exe): salvar, abrir, duplicar e
+5. **Guardar em perfis** (`.json` em `%APPDATA%\foto-geo\profiles`): salvar, abrir, duplicar e
    excluir quantos perfis quiser — um por cliente/obra, cada um com sua logo. A barra avisa
    quando há *alterações não salvas*; perfil de versão antiga abre com o que é válido e diz o
    que voltou ao padrão.

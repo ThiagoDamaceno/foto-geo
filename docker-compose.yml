@@ -1,0 +1,29 @@
+# Empacota o Foto Geo para Windows (portable + zip) via Wine.
+# Uso: ./scripts/dist-win.sh   ou   yarn dist:win:docker
+#
+# Saída: ./dist/  (montado do host)
+# Imagem Node 24 — exiftool-vendored exige >=22 (:20-wine quebra o yarn install)
+
+services:
+  win-builder:
+    image: electronuserland/builder:24-wine
+    working_dir: /project
+    volumes:
+      - .:/project
+      # node_modules do host (linux) não serve para o alvo win — volume isolado
+      - foto-geo-win-node-modules:/project/node_modules
+      - foto-geo-electron-cache:/root/.cache/electron
+      - foto-geo-electron-builder-cache:/root/.cache/electron-builder
+    environment:
+      ELECTRON_CACHE: /root/.cache/electron
+      ELECTRON_BUILDER_CACHE: /root/.cache/electron-builder
+      # Não forçar npm_config_platform=win32 no yarn/build — isso remove
+      # @rollup/rollup-linux-* e quebra o electron-vite. Os nativos win32
+      # (sharp/exiftool) são instalados depois, em scripts/dist-win-docker.sh.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    command: ['bash', 'scripts/dist-win-docker.sh']
+
+volumes:
+  foto-geo-win-node-modules:
+  foto-geo-electron-cache:
+  foto-geo-electron-builder-cache:

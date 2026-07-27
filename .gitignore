@@ -2,11 +2,23 @@ node_modules
 .env
 exemplos
 
-# build (electron-vite gera out/ também em dev)
-out
+# compilação / empacotamento
+out/
+dist/
+build/*
+!build/README.md
 *.tsbuildinfo
 
-# perfis do usuário (portátil: `profiles/` ao lado do exe; em dev, na raiz do repo)
+# artefatos do electron-builder
+*.exe.blockmap
+*.dmg.blockmap
+latest.yml
+latest-*.yml
+builder-effective-config.yaml
+builder-debug.yml
+.electron-builder/
+
+# pasta local antiga (perfis hoje vão em userData / %APPDATA%\foto-geo\profiles)
 profiles/*
 !profiles/.gitkeep
 
