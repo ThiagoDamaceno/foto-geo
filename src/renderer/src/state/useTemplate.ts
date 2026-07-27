@@ -111,11 +111,13 @@ export function useTemplate(): TemplateState {
   )
 
   const addDivider = useCallback((): void => {
+    // id fora do updater — StrictMode chama o updater 2× e duplicaria o divisor
+    const divider = createDivider()
     setTemplate((current) => ({
       ...current,
       section: {
         ...current.section,
-        fields: [...current.section.fields, createDivider()]
+        fields: [...current.section.fields, divider]
       }
     }))
   }, [])
@@ -217,10 +219,17 @@ export function useTemplate(): TemplateState {
   const applyTemplate = useCallback((next: Template, logos: LogoAsset[]): void => {
     setTemplate(next)
     const byId: Record<string, LogoAsset> = {}
-    next.logos.forEach((logo, index) => {
-      const asset = logos[index]
+    for (const asset of logos) {
+      if (asset.id) byId[asset.id] = asset
+    }
+    // fallback por caminho (perfis antigos / assets sem id)
+    for (const logo of next.logos) {
+      if (byId[logo.id]) continue
+      const asset = logos.find(
+        (item) => item.filePath === logo.filePath || item.filePath.endsWith(logo.filePath)
+      )
       if (asset) byId[logo.id] = asset
-    })
+    }
     setLogoAssets(byId)
   }, [])
 

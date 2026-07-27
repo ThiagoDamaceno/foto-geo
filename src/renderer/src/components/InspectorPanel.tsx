@@ -33,6 +33,8 @@ export default function InspectorPanel({
   onReorderLogos,
   onPatchLogo,
   onRemoveLogo,
+  selectedLogoId,
+  onSelectLogo,
   onReset
 }: {
   template: Template
@@ -48,6 +50,8 @@ export default function InspectorPanel({
   onReorderLogos: (from: number, to: number) => void
   onPatchLogo: (id: string, patch: Partial<Omit<LogoConfig, 'id' | 'filePath'>>) => void
   onRemoveLogo: (id: string) => void
+  selectedLogoId: string | null
+  onSelectLogo: (id: string) => void
   onReset: () => void
 }): React.JSX.Element {
   const { section } = template
@@ -62,7 +66,7 @@ export default function InspectorPanel({
         <button
           type="button"
           onClick={onReset}
-          title="Voltar ao perfil padrão"
+          title="Zera o carimbo para o padrão, mantendo o perfil aberto (salvar sobrescreve este perfil)"
           className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
         >
           <RotateCcw className="size-3.5" aria-hidden />
@@ -175,6 +179,8 @@ export default function InspectorPanel({
           logos={template.logos}
           assets={logoAssets}
           photoWidth={photo.width}
+          selectedId={selectedLogoId}
+          onSelect={onSelectLogo}
           onReorder={onReorderLogos}
           onPatch={onPatchLogo}
           onRemove={onRemoveLogo}

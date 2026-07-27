@@ -49,6 +49,10 @@ export default function ProfileBar({
   const active = profiles.find((profile) => profile.id === activeId) ?? null
   const canSave = name.trim().length > 0 && !isBusy
 
+  const confirmDiscard = (): boolean =>
+    !isDirty ||
+    window.confirm('Há alterações não salvas neste perfil. Descartar e continuar?')
+
   return (
     <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/40">
       <div className="flex flex-wrap items-center gap-2">
@@ -62,7 +66,10 @@ export default function ProfileBar({
           value={activeId ?? ''}
           disabled={isBusy}
           onChange={(event) => {
-            if (event.target.value) onLoad(event.target.value)
+            const id = event.target.value
+            if (!id || id === activeId) return
+            if (!confirmDiscard()) return
+            onLoad(id)
           }}
           className="min-w-44 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         >
@@ -132,7 +139,16 @@ export default function ProfileBar({
                 disabled={isBusy}
               />
             ))}
-          <Action icon={FilePlus2} label="Novo (padrão)" onClick={onNew} disabled={isBusy} />
+          <Action
+            icon={FilePlus2}
+            label="Novo (padrão)"
+            title="Zera o carimbo e sai do perfil aberto (o próximo salvar cria arquivo novo)"
+            onClick={() => {
+              if (!confirmDiscard()) return
+              onNew()
+            }}
+            disabled={isBusy}
+          />
         </div>
       </div>
 
@@ -158,6 +174,7 @@ export default function ProfileBar({
 function Action({
   icon: Icon,
   label,
+  title,
   onClick,
   disabled,
   primary,
@@ -165,6 +182,7 @@ function Action({
 }: {
   icon: typeof Save
   label: string
+  title?: string
   onClick: () => void
   disabled?: boolean
   primary?: boolean
@@ -181,7 +199,7 @@ function Action({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={label}
+      title={title ?? label}
       className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium disabled:opacity-40 ${tone}`}
     >
       <Icon className="size-3.5" aria-hidden />

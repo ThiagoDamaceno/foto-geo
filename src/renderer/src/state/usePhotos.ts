@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { PhotoMetadata, ScanResult } from '@shared/types'
 
 export interface IgnoredPath {
@@ -28,20 +28,24 @@ export function usePhotos(): PhotosState {
   const [ignored, setIgnored] = useState<IgnoredPath[]>([])
   const [isScanning, setIsScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const importGen = useRef(0)
 
   const importPaths = useCallback(async (paths: string[]): Promise<void> => {
     if (paths.length === 0) return
 
+    const gen = ++importGen.current
     setIsScanning(true)
     setError(null)
     try {
       const result: ScanResult = await window.fotoGeo.scanPhotos(paths)
+      if (gen !== importGen.current) return
       setPhotos((current) => mergePhotos(current, result.photos))
       setIgnored(result.ignored)
     } catch (cause) {
+      if (gen !== importGen.current) return
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
-      setIsScanning(false)
+      if (gen === importGen.current) setIsScanning(false)
     }
   }, [])
 
@@ -58,9 +62,11 @@ export function usePhotos(): PhotosState {
   }, [])
 
   const clear = useCallback((): void => {
+    importGen.current += 1
     setPhotos([])
     setIgnored([])
     setError(null)
+    setIsScanning(false)
   }, [])
 
   return { photos, ignored, isScanning, error, importPaths, pickImages, pickFolder, removePhoto, clear }

@@ -365,7 +365,7 @@ N perfis = **um arquivo `.json` por perfil**, e a logo é **referenciada por cam
 }
 ```
 
-**Onde ficam.** Em `profiles/` **ao lado do executável** (modo portátil). Em desenvolvimento, a mesma pasta na raiz do repositório. O target portable do electron-builder usa `PORTABLE_EXECUTABLE_DIR` quando o processo sobe de um temp.
+**Onde ficam.** Em `profiles/` **ao lado do executável** (modo portátil). Em desenvolvimento, a mesma pasta na raiz do repositório. Se a pasta do exe não for gravável (ex.: Program Files), cai em `userData/profiles`. O portable do electron-builder usa `PORTABLE_EXECUTABLE_DIR`. Logos sob a raiz do app são gravadas com caminho **relativo**; arquivo ausente gera aviso e o path permanece no JSON.
 
 **Identidade.** O perfil é identificado pelo **nome do arquivo** (`id`), gerado do nome na primeira gravação (`Obra São João` → `obra-sao-joao.json`), com sufixo numérico quando já existe. Consequência de projeto: **renomear e salvar não cria arquivo novo** — para isso existe o "Salvar como novo". O `id` que vem do Renderer é validado contra `/^[a-z0-9][a-z0-9-]{0,60}$/` antes de virar caminho, o que barra `../` (§11).
 

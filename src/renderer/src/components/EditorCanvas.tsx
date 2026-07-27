@@ -25,6 +25,8 @@ export default function EditorCanvas({
   photo,
   template,
   logoAssets,
+  selectedLogoId,
+  onSelectedLogoId,
   onMoveSection,
   onResizeSection,
   onMoveLogo,
@@ -34,6 +36,9 @@ export default function EditorCanvas({
   photo: PhotoMetadata
   template: Template
   logoAssets: Record<string, LogoAsset>
+  /** Seleção vinda da lista do inspector (null = nenhuma logo focada lá). */
+  selectedLogoId: string | null
+  onSelectedLogoId: (id: string | null) => void
   onMoveSection: (x: number, y: number) => void
   onResizeSection: (widthPct: number) => void
   onMoveLogo: (id: string, x: number, y: number) => void
@@ -47,6 +52,15 @@ export default function EditorCanvas({
   const [error, setError] = useState<string | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+  const viewGen = useRef(0)
+
+  const select = useCallback(
+    (next: Selection | null): void => {
+      setSelection(next)
+      onSelectedLogoId(next?.kind === 'logo' ? next.id : null)
+    },
+    [onSelectedLogoId]
+  )
 
   const overlayLogos = useMemo(
     () =>
@@ -61,11 +75,13 @@ export default function EditorCanvas({
 
   useEffect(() => {
     let active = true
+    viewGen.current += 1
     setPreview(null)
     setRendered(null)
     setMode('edit')
     setError(null)
     setSelection(null)
+    onSelectedLogoId(null)
     setIsBusy(true)
 
     void (async () => {
@@ -82,21 +98,35 @@ export default function EditorCanvas({
     return () => {
       active = false
     }
+    // só troca de foto — não reage a identidade de callbacks
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo.filePath])
 
   // mudança no template invalida a visualização já gerada
   useEffect(() => {
+    viewGen.current += 1
     setRendered(null)
     setMode('edit')
   }, [template])
+
+  // lista do inspector → canvas (null do pai não apaga seleção da seção)
+  useEffect(() => {
+    if (selectedLogoId && template.logos.some((logo) => logo.id === selectedLogoId)) {
+      setSelection({ kind: 'logo', id: selectedLogoId })
+      return
+    }
+    if (selectedLogoId === null) {
+      setSelection((current) => (current?.kind === 'logo' ? null : current))
+    }
+  }, [selectedLogoId, template.logos])
 
   // logo removida (inspector ou Del) — limpa seleção órfã
   useEffect(() => {
     if (selection?.kind !== 'logo') return
     if (!template.logos.some((logo) => logo.id === selection.id)) {
-      setSelection(null)
+      select(null)
     }
-  }, [template.logos, selection])
+  }, [template.logos, selection, select])
 
   // o carimbo é gerado no tamanho REAL da foto; o navegador só escala o SVG
   const overlay = useMemo(() => {
@@ -113,19 +143,22 @@ export default function EditorCanvas({
   }, [photo, template, overlayLogos])
 
   const showView = useCallback(async (): Promise<void> => {
+    const gen = ++viewGen.current
     setIsBusy(true)
     setError(null)
-    setSelection(null)
+    select(null)
     try {
       const result = await window.fotoGeo.renderPreview(photo, template, 1400)
+      if (gen !== viewGen.current) return
       setRendered(result)
       setMode('view')
     } catch (cause) {
+      if (gen !== viewGen.current) return
       setError(messageOf(cause))
     } finally {
-      setIsBusy(false)
+      if (gen === viewGen.current) setIsBusy(false)
     }
-  }, [photo, template])
+  }, [photo, template, select])
 
   const showEdit = useCallback((): void => {
     setMode('edit')
@@ -140,9 +173,9 @@ export default function EditorCanvas({
       event.stopPropagation()
 
       if (handle.kind === 'section-move' || handle.kind === 'section-resize') {
-        setSelection({ kind: 'section' })
+        select({ kind: 'section' })
       } else {
-        setSelection({ kind: 'logo', id: handle.id })
+        select({ kind: 'logo', id: handle.id })
       }
 
       const rect = frame.getBoundingClientRect()
@@ -181,7 +214,15 @@ export default function EditorCanvas({
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
     },
-    [onMoveSection, onResizeSection, onMoveLogo, onResizeLogo, template.logos, template.section]
+    [
+      onMoveSection,
+      onResizeSection,
+      onMoveLogo,
+      onResizeLogo,
+      template.logos,
+      template.section,
+      select
+    ]
   )
 
   // setas = 1 px na foto; Shift+seta = 10 px · Del/Backspace remove logo selecionada
@@ -189,13 +230,14 @@ export default function EditorCanvas({
     if (mode !== 'edit' || !selection || photo.width <= 0 || photo.height <= 0) return
 
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.defaultPrevented) return
       if (isTypingTarget(event.target)) return
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         if (selection.kind !== 'logo') return
         event.preventDefault()
         onRemoveLogo(selection.id)
-        setSelection(null)
+        select(null)
         return
       }
 
@@ -218,7 +260,7 @@ export default function EditorCanvas({
           dy = stepY
           break
         case 'Escape':
-          setSelection(null)
+          select(null)
           return
         default:
           return
@@ -247,7 +289,8 @@ export default function EditorCanvas({
     template.logos,
     onMoveSection,
     onMoveLogo,
-    onRemoveLogo
+    onRemoveLogo,
+    select
   ])
 
   const image = mode === 'view' ? rendered : preview
@@ -332,7 +375,7 @@ export default function EditorCanvas({
           <div
             ref={frameRef}
             className="relative w-fit overflow-hidden"
-            onPointerDown={() => setSelection(null)}
+            onPointerDown={() => select(null)}
           >
             <img
               src={image.dataUrl}

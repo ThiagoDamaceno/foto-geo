@@ -1,6 +1,5 @@
-import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-import { app } from 'electron'
+import { readdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { z } from 'zod'
 import { FIELD_ORDER } from '@shared/field-icons'
 import { newLogoId } from '@shared/logo-items'
@@ -18,6 +17,7 @@ import type {
   Template
 } from '@shared/types'
 import { isDivider } from '@shared/types'
+import { profilesDir, profilesDirPath, toStoredLogoPath } from './app-paths'
 import { loadLogoAsset } from './logo.service'
 
 /**
@@ -134,17 +134,23 @@ export async function listProfiles(): Promise<ProfileSummary[]> {
 
 /** Carrega um perfil já validado, com as logos resolvidas e a lista do que foi corrigido. */
 export async function loadProfile(id: string): Promise<ProfileFile> {
+  await profilesDir()
   const filePath = profilePath(id)
   const raw = await readJson(filePath)
   const { template, warnings } = parseTemplate(raw, fallbackName(id))
-  const resolved = await resolveLogos(template.logos)
+  const { assets, warnings: logoWarnings } = await resolveLogos(template.logos)
 
   return {
     id,
-    template: { ...template, logos: resolved.logos },
-    logos: resolved.assets,
-    warnings: [...warnings, ...resolved.warnings]
+    template,
+    logos: assets,
+    warnings: [...warnings, ...logoWarnings]
   }
+}
+
+/** Template validado/coerido — usado pelo lote (mesmos limites do perfil). */
+export function coerceTemplate(raw: unknown): Template {
+  return parseTemplate(raw, 'Lote').template
 }
 
 // ── Gravação ─────────────────────────────────────────────────────────────────────────────
@@ -154,6 +160,7 @@ export async function loadProfile(id: string): Promise<ProfileFile> {
  * sem `id`, cria um arquivo novo a partir do nome.
  */
 export async function saveProfile(id: string | null, raw: unknown): Promise<ProfileSummary> {
+  await profilesDir()
   const { template } = parseTemplate(raw, 'Perfil')
   const targetId = id === null ? await uniqueId(slugify(template.name)) : assertId(id)
 
@@ -172,16 +179,24 @@ export async function duplicateProfile(id: string): Promise<ProfileSummary> {
 }
 
 export async function deleteProfile(id: string): Promise<void> {
+  await profilesDir()
   await unlink(profilePath(id))
 }
 
 /** Gravação em dois passos: um `.tmp` completo antes do `rename`, para não deixar JSON pela metade. */
 async function writeProfile(id: string, template: Template): Promise<void> {
+  await profilesDir()
+  const stored: Template = {
+    ...template,
+    logos: template.logos.map((logo) => ({
+      ...logo,
+      filePath: toStoredLogoPath(logo.filePath)
+    }))
+  }
   const filePath = profilePath(id)
   const tmpPath = `${filePath}.tmp`
-  const content = JSON.stringify({ version: PROFILE_VERSION, ...template }, null, 2)
+  const content = JSON.stringify({ version: PROFILE_VERSION, ...stored }, null, 2)
 
-  await mkdir(await profilesDir(), { recursive: true })
   await writeFile(tmpPath, `${content}\n`, 'utf8')
   await rename(tmpPath, filePath)
 }
@@ -350,39 +365,8 @@ function pick<T>(
 
 // ── Arquivos ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * App **portátil**: perfis ficam em `profiles/` ao lado do executável.
- * Em dev, a mesma pasta na raiz do repositório (`profiles/`).
- *
- * `PORTABLE_EXECUTABLE_DIR` é definido pelo electron-builder no target portable
- * (o processo pode rodar de um temp — o diretório “visível” é o da pasta do .exe).
- */
-function appRootDir(): string {
-  const portableDir = process.env.PORTABLE_EXECUTABLE_DIR
-  if (typeof portableDir === 'string' && portableDir.trim() !== '') {
-    return portableDir
-  }
-
-  if (app.isPackaged) {
-    return dirname(process.execPath)
-  }
-
-  // bundle em `out/main` → raiz do projeto
-  return join(__dirname, '../..')
-}
-
-function dirPath(): string {
-  return join(appRootDir(), 'profiles')
-}
-
-async function profilesDir(): Promise<string> {
-  const dir = dirPath()
-  await mkdir(dir, { recursive: true })
-  return dir
-}
-
 function profilePath(id: unknown): string {
-  return join(dirPath(), `${assertId(id)}.json`)
+  return join(profilesDirPath(), `${assertId(id)}.json`)
 }
 
 function assertId(id: unknown): string {
@@ -428,26 +412,25 @@ async function summarize(id: string): Promise<ProfileSummary | null> {
 }
 
 /**
- * Carrega as logos do perfil (RF-06). Arquivo ausente/ilegível é **ignorado** (sai da lista)
- * e vira aviso — o resto do perfil abre normalmente (RNF-08).
+ * Carrega as logos do perfil (RF-06). Arquivo ausente/ilegível vira aviso, mas o
+ * `filePath` **permanece** no template — drive/USB pode voltar (RNF-08 / §8).
  */
 async function resolveLogos(
   logos: LogoConfig[]
-): Promise<{ logos: LogoConfig[]; assets: LogoAsset[]; warnings: string[] }> {
-  const kept: LogoConfig[] = []
+): Promise<{ assets: LogoAsset[]; warnings: string[] }> {
   const assets: LogoAsset[] = []
   const warnings: string[] = []
 
   for (const logo of logos) {
     try {
-      assets.push(await loadLogoAsset(logo.filePath))
-      kept.push(logo)
+      const asset = await loadLogoAsset(logo.filePath)
+      assets.push({ ...asset, id: logo.id })
     } catch {
-      warnings.push(`Logo ignorada (arquivo não encontrado): ${logo.filePath}`)
+      warnings.push(`Logo não encontrada (mantida no perfil): ${logo.filePath}`)
     }
   }
 
-  return { logos: kept, assets, warnings }
+  return { assets, warnings }
 }
 
 // ── Nomes e ids ──────────────────────────────────────────────────────────────────────────

@@ -154,8 +154,8 @@ export interface ProfileFile {
   id: string
   template: Template
   /**
-   * Logos já em PNG, na mesma ordem de `template.logos`.
-   * Arquivos ausentes são removidos do template e avisados em `warnings`.
+   * Logos já em PNG (só as que abriram). `template.logos` mantém todas as entradas —
+   * arquivo ausente vira aviso, o caminho permanece no perfil.
    */
   logos: LogoAsset[]
   /** Campos ausentes/inválidos trocados pelo padrão, e logos não encontradas (ARQUITETURA.md §8). */
@@ -224,6 +224,8 @@ export interface LogoAsset {
   dataUrl: string
   /** largura/altura — define a altura da caixa a partir da largura relativa. */
   aspectRatio: number
+  /** Presente quando veio do carregamento de perfil — alinha com `LogoConfig.id`. */
+  id?: string
 }
 
 /** Imagem já reduzida para exibição no editor (o original tem ~36 MP). */

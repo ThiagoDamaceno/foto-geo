@@ -15,6 +15,7 @@ import type {
 } from '@shared/types'
 import { readPhotoMetadata } from './exif.service'
 import { collectImagePaths } from './files.service'
+import { coerceTemplate } from './profile.service'
 import { renderPhotoToFile } from './render.service'
 
 /**
@@ -143,7 +144,17 @@ export async function runBatch(
     await Promise.all(
       plan.map((item) =>
         limit(async () => {
-          if (job.canceled) return
+          if (job.canceled) {
+            counts.processed += 1
+            counts.skipped += 1
+            issues.push({
+              file: basename(item.filePath),
+              reason: 'Cancelado',
+              skipped: true
+            })
+            report(basename(item.filePath))
+            return
+          }
 
           report(basename(item.filePath))
           const outcome = await processPhoto(item.filePath, item.outputPath, config.template)
@@ -241,14 +252,14 @@ function parseConfig(raw: unknown): BatchConfig {
   if (typeof outputDir !== 'string' || outputDir.trim() === '' || !isAbsolute(outputDir)) {
     throw new Error('Escolha a pasta de saída')
   }
-  if (!template || typeof template !== 'object' || !template.section || !Array.isArray(template.logos)) {
+  if (!template || typeof template !== 'object') {
     throw new Error('Template inválido')
   }
 
   return {
     photos: photos.filter((photo): photo is string => typeof photo === 'string'),
     outputDir: resolve(outputDir),
-    template,
+    template: coerceTemplate(template),
     naming: isNaming(naming) ? naming : 'keep',
     overwrite: overwrite === true
   }

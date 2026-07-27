@@ -58,10 +58,17 @@ export async function readPhotoMetadata(filePath: string): Promise<PhotoMetadata
     return { ...base, error: `Falha ao ler metadados: ${messageOf(error)}` }
   }
 
+  // Dimensões **após** orientação EXIF (igual ao `.rotate()` do Sharp no render) —
+  // orientations 5–8 trocam largura/altura; sem isso o overlay diverge da saída.
+  const rawWidth = num(tags.ImageWidth) ?? num(tags.ExifImageWidth) ?? 0
+  const rawHeight = num(tags.ImageHeight) ?? num(tags.ExifImageHeight) ?? 0
+  const orientation = num(tags.Orientation) ?? 1
+  const swap = orientation >= 5 && orientation <= 8
+
   const photo: PhotoMetadata = {
     ...base,
-    width: num(tags.ImageWidth) ?? num(tags.ExifImageWidth) ?? 0,
-    height: num(tags.ImageHeight) ?? num(tags.ExifImageHeight) ?? 0,
+    width: swap ? rawHeight : rawWidth,
+    height: swap ? rawWidth : rawHeight,
     ...readCoordinates(tags),
     ...readAltitudes(tags),
     present: []

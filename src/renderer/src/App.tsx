@@ -53,6 +53,7 @@ export default function App(): React.JSX.Element {
   const batch = useBatch(template)
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [selectedLogoId, setSelectedLogoId] = useState<string | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
 
   const pickLogos = useCallback(async (): Promise<void> => {
@@ -65,10 +66,32 @@ export default function App(): React.JSX.Element {
     }
   }, [addLogos])
 
+  const handleRemovePhoto = useCallback(
+    (filePath: string): void => {
+      removePhoto(filePath)
+      setSelectedPath((current) => (current === filePath ? null : current))
+    },
+    [removePhoto]
+  )
+
+  const handleRemoveLogo = useCallback(
+    (id: string): void => {
+      removeLogo(id)
+      setSelectedLogoId((current) => (current === id ? null : current))
+    },
+    [removeLogo]
+  )
+
   /** Foto de referência do editor: a escolhida, ou a primeira com telemetria e tamanho. */
   const selected = useMemo(() => {
     const byPath = photos.find((photo) => photo.filePath === selectedPath)
     return byPath ?? photos.find((photo) => photo.width > 0 && !photo.error) ?? null
+  }, [photos, selectedPath])
+
+  useEffect(() => {
+    if (selectedPath && !photos.some((photo) => photo.filePath === selectedPath)) {
+      setSelectedPath(null)
+    }
   }, [photos, selectedPath])
 
   useEffect(() => {
@@ -164,7 +187,7 @@ export default function App(): React.JSX.Element {
                 photos={photos}
                 selectedPath={selected?.filePath ?? null}
                 onSelect={setSelectedPath}
-                onRemove={removePhoto}
+                onRemove={handleRemovePhoto}
                 onClear={clear}
               />
 
@@ -174,11 +197,13 @@ export default function App(): React.JSX.Element {
                     photo={selected}
                     template={template}
                     logoAssets={logoAssets}
+                    selectedLogoId={selectedLogoId}
+                    onSelectedLogoId={setSelectedLogoId}
                     onMoveSection={moveSection}
                     onResizeSection={resizeSection}
                     onMoveLogo={moveLogo}
                     onResizeLogo={resizeLogo}
-                    onRemoveLogo={removeLogo}
+                    onRemoveLogo={handleRemoveLogo}
                   />
                 ) : (
                   <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -220,8 +245,20 @@ export default function App(): React.JSX.Element {
                   onAddLogos={() => void pickLogos()}
                   onReorderLogos={reorderLogos}
                   onPatchLogo={patchLogo}
-                  onRemoveLogo={removeLogo}
-                  onReset={reset}
+                  onRemoveLogo={handleRemoveLogo}
+                  selectedLogoId={selectedLogoId}
+                  onSelectLogo={setSelectedLogoId}
+                  onReset={() => {
+                    if (
+                      profiles.isDirty &&
+                      !window.confirm(
+                        'Há alterações não salvas. Descartar o carimbo atual e voltar ao padrão?'
+                      )
+                    ) {
+                      return
+                    }
+                    reset()
+                  }}
                 />
               ) : (
                 <aside className="flex w-80 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">

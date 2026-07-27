@@ -26,6 +26,8 @@ export default function LogoList({
   logos,
   assets,
   photoWidth,
+  selectedId,
+  onSelect,
   onReorder,
   onPatch,
   onRemove
@@ -33,6 +35,8 @@ export default function LogoList({
   logos: LogoConfig[]
   assets: Record<string, LogoAsset>
   photoWidth: number
+  selectedId: string | null
+  onSelect: (id: string) => void
   onReorder: (from: number, to: number) => void
   onPatch: (id: string, patch: Partial<Omit<LogoConfig, 'id' | 'filePath'>>) => void
   onRemove: (id: string) => void
@@ -73,8 +77,10 @@ export default function LogoList({
               key={logo.id}
               logo={logo}
               asset={assets[logo.id]}
+              selected={selectedId === logo.id}
               stackHint={index === 0 ? 'frente' : undefined}
               photoWidth={photoWidth}
+              onSelect={onSelect}
               onPatch={onPatch}
               onRemove={onRemove}
             />
@@ -88,15 +94,19 @@ export default function LogoList({
 function LogoRow({
   logo,
   asset,
+  selected,
   stackHint,
   photoWidth,
+  onSelect,
   onPatch,
   onRemove
 }: {
   logo: LogoConfig
   asset: LogoAsset | undefined
+  selected: boolean
   stackHint?: string
   photoWidth: number
+  onSelect: (id: string) => void
   onPatch: (id: string, patch: Partial<Omit<LogoConfig, 'id' | 'filePath'>>) => void
   onRemove: (id: string) => void
 }): React.JSX.Element {
@@ -112,10 +122,13 @@ function LogoRow({
     <li
       ref={setNodeRef}
       style={style}
+      onClick={() => onSelect(logo.id)}
       className={`space-y-2 rounded-lg border px-2 py-2 text-xs ${
         isDragging
           ? 'z-10 border-sky-400 bg-sky-500/10 shadow-lg'
-          : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40'
+          : selected
+            ? 'border-sky-500 bg-sky-500/10 dark:border-sky-500'
+            : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40'
       }`}
     >
       <div className="flex items-center gap-2">

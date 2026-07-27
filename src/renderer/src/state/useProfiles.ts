@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { cloneDefaultTemplate } from '@shared/template-defaults'
 import type { LogoAsset, ProfileSummary, Template } from '@shared/types'
 import { messageOf } from '../lib/ipc-error'
 
@@ -38,7 +39,8 @@ export function useProfiles(
 ): ProfilesState {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
+  // baseline desde o início: perfil novo também marca "alterações não salvas"
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(cloneDefaultTemplate()))
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -123,16 +125,16 @@ export function useProfiles(
 
         // o perfil aberto deixou de existir: o template continua na tela, mas solto
         setActiveId(null)
-        setSavedSnapshot(null)
+        setSavedSnapshot(JSON.stringify(template))
         setWarnings([])
       }),
-    [activeId, perform, refresh]
+    [activeId, perform, refresh, template]
   )
 
   const detach = useCallback((): void => {
     resetTemplate()
     setActiveId(null)
-    setSavedSnapshot(null)
+    setSavedSnapshot(JSON.stringify(cloneDefaultTemplate()))
     setWarnings([])
     setError(null)
   }, [resetTemplate])
@@ -143,7 +145,7 @@ export function useProfiles(
   }, [])
 
   const isDirty = useMemo(
-    () => savedSnapshot !== null && savedSnapshot !== JSON.stringify(template),
+    () => savedSnapshot !== JSON.stringify(template),
     [savedSnapshot, template]
   )
 

@@ -13,14 +13,15 @@ export default function HelpButton(): React.JSX.Element {
     closeRef.current?.focus()
 
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        setOpen(false)
-      }
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      setOpen(false)
     }
 
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    // capture: fecha a ajuda sem limpar a seleção do canvas no mesmo Esc
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [open])
 
   return (
@@ -134,8 +135,8 @@ export default function HelpButton(): React.JSX.Element {
                 </p>
                 <p className="mt-1.5">
                   Arquivos em <Kbd>profiles/</Kbd> ao lado do executável (em desenvolvimento, na pasta
-                  do projeto). Logos são caminhos absolutos — se o arquivo sumir, o perfil abre sem
-                  ela.
+                  do projeto). Caminhos de logo dentro da pasta do app são salvos relativos — o kit
+                  portátil se move junto. Se o arquivo sumir, o perfil mantém a referência e avisa.
                 </p>
               </Section>
 

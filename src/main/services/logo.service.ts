@@ -1,8 +1,9 @@
 import { stat } from 'node:fs/promises'
-import { extname, isAbsolute, resolve } from 'node:path'
+import { extname } from 'node:path'
 import sharp from 'sharp'
 import { isSupportedLogo, LOGO_EXTENSIONS } from '@shared/image-formats'
 import type { LogoAsset } from '@shared/types'
+import { resolveLogoPath } from './app-paths'
 
 /**
  * Logo do carimbo (RF-06).
@@ -24,11 +25,7 @@ interface CacheEntry extends LogoAsset {
 const cache = new Map<string, CacheEntry>()
 
 export async function loadLogoAsset(rawPath: string): Promise<LogoAsset> {
-  if (typeof rawPath !== 'string' || !isAbsolute(rawPath)) {
-    throw new Error('Caminho de logo inválido')
-  }
-
-  const filePath = resolve(rawPath)
+  const filePath = resolveLogoPath(rawPath)
   if (!isSupportedLogo(filePath)) {
     throw new Error('Formato de logo não suportado (use PNG, SVG, WebP, JPEG…)')
   }
