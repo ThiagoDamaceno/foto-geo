@@ -125,8 +125,8 @@ foto-geo/
 > (`batch.service` + `BatchPanel`: pasta de saída, naming, progresso, cancelar, resumo).
 > Falta o empacotamento `.exe` (passo 8). Pontos de atenção: §16. Instalação: `REQUISITOS.md §11`.
 >
-> Os perfis do usuário **não** ficam na pasta do projeto: gravam em `userData`
-> (`%APPDATA%/foto-geo/profiles` no Windows) — §8.
+> Os perfis ficam em `profiles/` **ao lado do executável** (app portátil); em dev, na
+> raiz do repositório — §8.
 >
 > `SectionElement`/`LogoElement`/`FieldRow` não viraram arquivos próprios: como a parte visual
 > é o SVG, sobrou uma alça genérica (`DragBox`, dentro do `EditorCanvas`) usada pelos dois
@@ -365,7 +365,7 @@ N perfis = **um arquivo `.json` por perfil**, e a logo é **referenciada por cam
 }
 ```
 
-**Onde ficam.** Em `userData/profiles` (`%APPDATA%/foto-geo/profiles` no Windows), **não** na pasta do app: com o `.exe` instalado em `Program Files` aquela pasta não é gravável, e o `userData` sobrevive à atualização. (Se um dia o produto for portátil "tudo numa pasta", é só esta função que muda.)
+**Onde ficam.** Em `profiles/` **ao lado do executável** (modo portátil). Em desenvolvimento, a mesma pasta na raiz do repositório. O target portable do electron-builder usa `PORTABLE_EXECUTABLE_DIR` quando o processo sobe de um temp.
 
 **Identidade.** O perfil é identificado pelo **nome do arquivo** (`id`), gerado do nome na primeira gravação (`Obra São João` → `obra-sao-joao.json`), com sufixo numérico quando já existe. Consequência de projeto: **renomear e salvar não cria arquivo novo** — para isso existe o "Salvar como novo". O `id` que vem do Renderer é validado contra `/^[a-z0-9][a-z0-9-]{0,60}$/` antes de virar caminho, o que barra `../` (§11).
 
@@ -510,7 +510,7 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 5. ✅ Editor completo: campos com DnD (`@dnd-kit`), inspector (largura, fonte, espaçamentos,
    cores, rótulos, visibilidade) e logo PNG/SVG com posição/tamanho livres.
 6. ✅ `profile.service` (JSON + validação Zod) → salvar/abrir/duplicar/excluir perfis em
-   `userData/profiles`, cada um com sua logo, e `ProfileBar` com marca de "alterações não
+   `profiles/` (ao lado do exe), cada um com sua logo, e `ProfileBar` com marca de "alterações não
    salvas". Verificado: perfil de versão antiga e JSON corrompido abrem com aviso em vez de
    quebrar, e `id` com `../` é recusado.
 7. ✅ `batch.service` → lote com `p-limit` (teto 4), progresso, cancelar, resumo

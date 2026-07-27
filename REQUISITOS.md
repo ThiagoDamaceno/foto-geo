@@ -103,8 +103,7 @@ Ajustáveis pelo usuário:
 - Salvar **todas as configurações** (seção, campos, ordem, fonte, posições, logo) em um **arquivo JSON** por perfil.
 - Suportar **N perfis** (ex.: um por cliente/obra), cada um podendo referenciar sua **própria logo** (N logos).
 - Carregar/editar/duplicar perfis — e excluir, com confirmação em dois toques.
-- Os arquivos ficam em `%APPDATA%/foto-geo/profiles` (gravável mesmo com o app instalado em
-  `Program Files`) — `ARQUITETURA.md §8`.
+- Os arquivos ficam em `profiles/` ao lado do executável (app portátil) — `ARQUITETURA.md §8`.
 - A barra de perfis mostra **"alterações não salvas"**; "Salvar" sobrescreve o perfil aberto e
   "Salvar como novo" cria outro arquivo (renomear **não** duplica o perfil).
 - Perfil de versão antiga ou editado à mão abre com o que é válido: valor inválido volta ao
@@ -151,7 +150,7 @@ Ajustáveis pelo usuário:
      • campos: ordem (DnD), ícones, quais mostrar
      • logo: importar PNG/SVG e arrastar livre
 3. Ver preview ao vivo sobre uma foto real
-4. Salvar perfil (.json — em %APPDATA%/foto-geo/profiles)
+4. Salvar perfil (.json — em profiles/ ao lado do exe)
 5. [PROCESSAR] → aplica a todas as fotos → pasta de saída
 6. Resumo + abrir pasta
 ```
@@ -160,7 +159,7 @@ Ajustáveis pelo usuário:
 
 ## 7. Modelo de configuração (resumo — detalhe em ARQUITETURA §8)
 
-Tudo salvo em **JSON** com valores **relativos** (0–1) para posição/tamanho, mais a **ordem** dos campos e referência ao arquivo de logo. N perfis = N arquivos `.json` em `%APPDATA%/foto-geo/profiles`.
+Tudo salvo em **JSON** com valores **relativos** (0–1) para posição/tamanho, mais a **ordem** dos campos e referência ao arquivo de logo. N perfis = N arquivos `.json` em `profiles/` (ao lado do executável).
 
 ---
 

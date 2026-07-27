@@ -1,5 +1,5 @@
 import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { app } from 'electron'
 import { z } from 'zod'
 import { FIELD_ORDER } from '@shared/field-icons'
@@ -351,11 +351,28 @@ function pick<T>(
 // ── Arquivos ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * `userData` (`%APPDATA%/foto-geo/profiles` no Windows) em vez da pasta do app: é gravável
- * mesmo com o `.exe` instalado em `Program Files` e sobrevive a atualizações.
+ * App **portátil**: perfis ficam em `profiles/` ao lado do executável.
+ * Em dev, a mesma pasta na raiz do repositório (`profiles/`).
+ *
+ * `PORTABLE_EXECUTABLE_DIR` é definido pelo electron-builder no target portable
+ * (o processo pode rodar de um temp — o diretório “visível” é o da pasta do .exe).
  */
+function appRootDir(): string {
+  const portableDir = process.env.PORTABLE_EXECUTABLE_DIR
+  if (typeof portableDir === 'string' && portableDir.trim() !== '') {
+    return portableDir
+  }
+
+  if (app.isPackaged) {
+    return dirname(process.execPath)
+  }
+
+  // bundle em `out/main` → raiz do projeto
+  return join(__dirname, '../..')
+}
+
 function dirPath(): string {
-  return join(app.getPath('userData'), 'profiles')
+  return join(appRootDir(), 'profiles')
 }
 
 async function profilesDir(): Promise<string> {

@@ -6,8 +6,9 @@ exemplos
 out
 *.tsbuildinfo
 
-# os perfis do usuário ficam em userData (%APPDATA%/foto-geo/profiles), fora do repo —
-# ARQUITETURA.md §8
+# perfis do usuário (portátil: `profiles/` ao lado do exe; em dev, na raiz do repo)
+profiles/*
+!profiles/.gitkeep
 
 # logs / SO
 *.log
