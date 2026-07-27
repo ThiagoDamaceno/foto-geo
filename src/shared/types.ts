@@ -113,9 +113,13 @@ export interface SectionConfig {
   fields: SectionItem[]
 }
 
-/** Logo com posição e tamanho livres. */
+/**
+ * Logo com posição e tamanho livres.
+ * A ordem em `Template.logos` é o empilhamento: índice 0 fica por cima.
+ */
 export interface LogoConfig {
-  filePath: string | null
+  id: string
+  filePath: string
   x: number
   y: number
   widthPct: number
@@ -126,7 +130,8 @@ export interface LogoConfig {
 export interface Template {
   name: string
   section: SectionConfig
-  logo: LogoConfig
+  /** Ordem = empilhamento (0 = frente). Caminhos absolutos das imagens. */
+  logos: LogoConfig[]
 }
 
 /**
@@ -144,13 +149,16 @@ export interface ProfileSummary {
   error?: string
 }
 
-/** Perfil carregado: o template já validado, a logo resolvida e o que foi corrigido. */
+/** Perfil carregado: o template já validado, as logos resolvidas e o que foi corrigido. */
 export interface ProfileFile {
   id: string
   template: Template
-  /** Logo do perfil já em PNG; `null` quando o perfil não tem logo ou o arquivo sumiu. */
-  logo: LogoAsset | null
-  /** Campos ausentes/inválidos trocados pelo padrão, e logo não encontrada (ARQUITETURA.md §8). */
+  /**
+   * Logos já em PNG, na mesma ordem de `template.logos`.
+   * Arquivos ausentes são removidos do template e avisados em `warnings`.
+   */
+  logos: LogoAsset[]
+  /** Campos ausentes/inválidos trocados pelo padrão, e logos não encontradas (ARQUITETURA.md §8). */
   warnings: string[]
 }
 
@@ -249,8 +257,8 @@ export interface FotoGeoApi {
   scanPhotos: (paths: string[]) => Promise<ScanResult>
   /** Versão reduzida da foto para o fundo do editor. */
   getPreviewImage: (filePath: string, maxWidth: number) => Promise<PreviewImage>
-  /** Seletor de logo (PNG/SVG/WebP/JPEG…); `null` se o usuário cancelar. */
-  pickLogo: () => Promise<LogoAsset | null>
+  /** Seletor de logo(s) (PNG/SVG/WebP/JPEG…); `[]` se o usuário cancelar. */
+  pickLogo: () => Promise<LogoAsset[]>
   /** Recarrega uma logo já referenciada por um perfil. */
   readLogo: (filePath: string) => Promise<LogoAsset>
   /** Carimba a foto em tamanho real com o Sharp e devolve o resultado reduzido. */

@@ -35,18 +35,22 @@ export async function pickFolder(parent: BrowserWindow | null): Promise<string[]
   return folder ? listImagesInFolder(folder) : []
 }
 
-/** Seletor da logo (RF-06). Devolve `null` quando o usuário cancela. */
-export async function pickLogo(parent: BrowserWindow | null): Promise<LogoAsset | null> {
-  const [file] = await showOpen(parent, {
-    title: 'Selecionar logo',
+/** Seletor de logo(s) (RF-06). Devolve `[]` quando o usuário cancela. */
+export async function pickLogo(parent: BrowserWindow | null): Promise<LogoAsset[]> {
+  const files = await showOpen(parent, {
+    title: 'Selecionar logo(s)',
     buttonLabel: 'Usar',
-    properties: ['openFile'],
+    properties: ['openFile', 'multiSelections'],
     filters: [
       { name: 'Logo (PNG, SVG, WebP, JPEG…)', extensions: LOGO_EXTENSIONS.map((e) => e.slice(1)) }
     ]
   })
 
-  return file ? loadLogoAsset(file) : null
+  const assets: LogoAsset[] = []
+  for (const file of files) {
+    assets.push(await loadLogoAsset(file))
+  }
+  return assets
 }
 
 /** Seletor da pasta de saída do lote (RF-09). Devolve `null` quando o usuário cancela. */

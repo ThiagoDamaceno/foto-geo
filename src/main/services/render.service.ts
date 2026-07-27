@@ -110,7 +110,7 @@ export async function renderPhotoToFile(
 
 async function buildSvg(photo: PhotoMetadata, template: Template, size: Size): Promise<string> {
   const fontDataUrl = await loadFontDataUrl()
-  const logo = await loadLogo(template)
+  const logos = await loadLogos(template)
 
   return buildOverlaySvg({
     size,
@@ -119,19 +119,26 @@ async function buildSvg(photo: PhotoMetadata, template: Template, size: Size): P
     photo: { ...photo, width: size.width, height: size.height },
     icons: ICON_MARKUP,
     ...(fontDataUrl ? { fontDataUrl } : {}),
-    ...(logo ? { logoDataUrl: logo.dataUrl, logoAspectRatio: logo.aspectRatio } : {})
+    logos
   }).svg
 }
 
 /** Logo faltando/ilegível não invalida o carimbo — só sai sem ela (RNF-08). */
-async function loadLogo(template: Template): Promise<{ dataUrl: string; aspectRatio: number } | null> {
-  if (!template.logo.filePath) return null
+async function loadLogos(
+  template: Template
+): Promise<Array<{ id: string; dataUrl: string; aspectRatio: number }>> {
+  const loaded: Array<{ id: string; dataUrl: string; aspectRatio: number }> = []
 
-  try {
-    return await loadLogoAsset(template.logo.filePath)
-  } catch {
-    return null
+  for (const logo of template.logos) {
+    try {
+      const asset = await loadLogoAsset(logo.filePath)
+      loaded.push({ id: logo.id, dataUrl: asset.dataUrl, aspectRatio: asset.aspectRatio })
+    } catch {
+      // ignora arquivo ausente no render — o lote/editor já avisam no carregamento do perfil
+    }
   }
+
+  return loaded
 }
 
 /**

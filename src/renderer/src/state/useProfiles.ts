@@ -33,7 +33,7 @@ export interface ProfilesState {
  */
 export function useProfiles(
   template: Template,
-  applyTemplate: (template: Template, logo: LogoAsset | null) => void,
+  applyTemplate: (template: Template, logos: LogoAsset[]) => void,
   resetTemplate: () => void
 ): ProfilesState {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([])
@@ -91,7 +91,7 @@ export function useProfiles(
     (id: string): Promise<void> =>
       perform(async () => {
         const profile = await window.fotoGeo.loadProfile(id)
-        applyTemplate(profile.template, profile.logo)
+        applyTemplate(profile.template, profile.logos)
         setActiveId(profile.id)
         setSavedSnapshot(JSON.stringify(profile.template))
         setWarnings(profile.warnings)
@@ -106,7 +106,7 @@ export function useProfiles(
         await refresh()
         // abrir a cópia é o que o usuário quer em seguida: duplicar serve para variar dela
         const copy = await window.fotoGeo.loadProfile(summary.id)
-        applyTemplate(copy.template, copy.logo)
+        applyTemplate(copy.template, copy.logos)
         setActiveId(copy.id)
         setSavedSnapshot(JSON.stringify(copy.template))
         setWarnings(copy.warnings)

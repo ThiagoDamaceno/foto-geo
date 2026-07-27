@@ -7,7 +7,11 @@ import { ICON_MARKUP } from '../lib/icon-markup'
 
 /** `edit` = overlay + alças · `view` = foto já carimbada (saída real). */
 type Mode = 'edit' | 'view'
-type Handle = 'section-move' | 'section-resize' | 'logo-move' | 'logo-resize'
+type Handle =
+  | { kind: 'section-move' }
+  | { kind: 'section-resize' }
+  | { kind: 'logo-move'; id: string }
+  | { kind: 'logo-resize'; id: string }
 
 /**
  * Preview do carimbo sobre a foto real (RF-08).
@@ -19,7 +23,7 @@ type Handle = 'section-move' | 'section-resize' | 'logo-move' | 'logo-resize'
 export default function EditorCanvas({
   photo,
   template,
-  logoAsset,
+  logoAssets,
   onMoveSection,
   onResizeSection,
   onMoveLogo,
@@ -27,11 +31,11 @@ export default function EditorCanvas({
 }: {
   photo: PhotoMetadata
   template: Template
-  logoAsset: LogoAsset | null
+  logoAssets: Record<string, LogoAsset>
   onMoveSection: (x: number, y: number) => void
   onResizeSection: (widthPct: number) => void
-  onMoveLogo: (x: number, y: number) => void
-  onResizeLogo: (widthPct: number) => void
+  onMoveLogo: (id: string, x: number, y: number) => void
+  onResizeLogo: (id: string, widthPct: number) => void
 }): React.JSX.Element {
   const [preview, setPreview] = useState<PreviewImage | null>(null)
   const [rendered, setRendered] = useState<RenderedPreview | null>(null)
@@ -39,6 +43,17 @@ export default function EditorCanvas({
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const frameRef = useRef<HTMLDivElement>(null)
+
+  const overlayLogos = useMemo(
+    () =>
+      template.logos.flatMap((logo) => {
+        const asset = logoAssets[logo.id]
+        return asset
+          ? [{ id: logo.id, dataUrl: asset.dataUrl, aspectRatio: asset.aspectRatio }]
+          : []
+      }),
+    [template.logos, logoAssets]
+  )
 
   useEffect(() => {
     let active = true
@@ -80,11 +95,9 @@ export default function EditorCanvas({
       template,
       photo,
       icons: ICON_MARKUP,
-      ...(logoAsset
-        ? { logoDataUrl: logoAsset.dataUrl, logoAspectRatio: logoAsset.aspectRatio }
-        : {})
+      logos: overlayLogos
     })
-  }, [photo, template, logoAsset])
+  }, [photo, template, overlayLogos])
 
   const showView = useCallback(async (): Promise<void> => {
     setIsBusy(true)
@@ -115,24 +128,28 @@ export default function EditorCanvas({
       const rect = frame.getBoundingClientRect()
       const startX = event.clientX
       const startY = event.clientY
-      const origin =
-        handle.startsWith('logo') ? template.logo : { x: template.section.x, y: template.section.y }
-      const originWidth =
-        handle.startsWith('logo') ? template.logo.widthPct : template.section.widthPct
+
+      const logo =
+        handle.kind === 'logo-move' || handle.kind === 'logo-resize'
+          ? template.logos.find((item) => item.id === handle.id)
+          : null
+
+      const origin = logo ?? { x: template.section.x, y: template.section.y }
+      const originWidth = logo?.widthPct ?? template.section.widthPct
 
       const onMove = (moveEvent: PointerEvent): void => {
         const dx = (moveEvent.clientX - startX) / rect.width
         const dy = (moveEvent.clientY - startY) / rect.height
 
-        switch (handle) {
+        switch (handle.kind) {
           case 'section-move':
             return onMoveSection(origin.x + dx, origin.y + dy)
           case 'section-resize':
             return onResizeSection(originWidth + dx)
           case 'logo-move':
-            return onMoveLogo(origin.x + dx, origin.y + dy)
+            return onMoveLogo(handle.id, origin.x + dx, origin.y + dy)
           case 'logo-resize':
-            return onResizeLogo(originWidth + dx)
+            return onResizeLogo(handle.id, originWidth + dx)
         }
       }
 
@@ -144,16 +161,26 @@ export default function EditorCanvas({
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
     },
-    [onMoveSection, onResizeSection, onMoveLogo, onResizeLogo, template.logo, template.section]
+    [onMoveSection, onResizeSection, onMoveLogo, onResizeLogo, template.logos, template.section]
   )
 
   const image = mode === 'view' ? rendered : preview
   const size = { width: photo.width, height: photo.height }
   const sectionStyle = overlay && photo.width > 0 ? toPercent(overlay.sectionBox, size) : null
-  const logoStyle =
-    logoAsset && photo.width > 0
-      ? toPercent(logoBox(template.logo, size, logoAsset.aspectRatio), size)
-      : null
+
+  // alças: fundo → frente, para o item de cima da lista receber o clique
+  const logoHandles = [...template.logos]
+    .reverse()
+    .flatMap((logo) => {
+      const asset = logoAssets[logo.id]
+      if (!asset || photo.width === 0) return []
+      return [
+        {
+          id: logo.id,
+          style: toPercent(logoBox(logo, size, asset.aspectRatio), size)
+        }
+      ]
+    })
 
   return (
     <section className="min-w-0 shrink-0 space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/40">
@@ -168,6 +195,7 @@ export default function EditorCanvas({
             {overlay
               ? ` · ${overlay.rows.filter((row) => row !== 'divider').length} campo(s) no carimbo`
               : ''}
+            {template.logos.length > 0 ? ` · ${template.logos.length} logo(s)` : ''}
           </p>
         </div>
 
@@ -237,19 +265,23 @@ export default function EditorCanvas({
               <DragBox
                 style={sectionStyle}
                 label="Seção de dados"
-                onMove={(event) => handlePointerDown(event, 'section-move')}
-                onResize={(event) => handlePointerDown(event, 'section-resize')}
+                onMove={(event) => handlePointerDown(event, { kind: 'section-move' })}
+                onResize={(event) => handlePointerDown(event, { kind: 'section-resize' })}
               />
             )}
 
-            {mode === 'edit' && logoStyle && (
-              <DragBox
-                style={logoStyle}
-                label="Logo"
-                onMove={(event) => handlePointerDown(event, 'logo-move')}
-                onResize={(event) => handlePointerDown(event, 'logo-resize')}
-              />
-            )}
+            {mode === 'edit' &&
+              logoHandles.map((handle) => (
+                <DragBox
+                  key={handle.id}
+                  style={handle.style}
+                  label="Logo"
+                  onMove={(event) => handlePointerDown(event, { kind: 'logo-move', id: handle.id })}
+                  onResize={(event) =>
+                    handlePointerDown(event, { kind: 'logo-resize', id: handle.id })
+                  }
+                />
+              ))}
           </div>
         ) : (
           <div

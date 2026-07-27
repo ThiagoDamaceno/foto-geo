@@ -33,13 +33,7 @@ export const DEFAULT_TEMPLATE: Template = {
       showLabel: WITH_LABEL.includes(key)
     }))
   },
-  logo: {
-    filePath: null,
-    x: 0.82,
-    y: 0.86,
-    widthPct: 0.15,
-    opacity: 1
-  }
+  logos: []
 }
 
 /** Cópia profunda do padrão — evita que a UI mute o objeto compartilhado. */

@@ -179,7 +179,8 @@ export interface SectionConfig {
 }
 
 export interface LogoConfig {
-  filePath: string | null; // PNG/SVG
+  id: string;
+  filePath: string;        // PNG/SVG/WebP/JPEG…
   x: number; y: number;    // 0..1 (livre)
   widthPct: number;        // largura relativa
   opacity: number;
@@ -188,7 +189,7 @@ export interface LogoConfig {
 export interface Template {          // == 1 PERFIL
   name: string;
   section: SectionConfig;
-  logo: LogoConfig;
+  logos: LogoConfig[];     // ORDEM = empilhamento (0 = frente); DnD na lista
 }
 ```
 
@@ -212,7 +213,7 @@ export interface PhotoMetadata {
 export interface ProfileSummary { id: string; name: string; filePath: string;
   updatedAt: string; error?: string; }          // `error` = arquivo ilegível (RNF-08)
 export interface ProfileFile { id: string; template: Template;
-  logo: LogoAsset | null; warnings: string[]; } // avisos = o que caiu no padrão ao carregar
+  logos: LogoAsset[]; warnings: string[]; } // logos alinhadas a template.logos; avisos = padrão / arquivo ausente
 
 export type OutputNaming = 'keep' | 'suffix'   // §9.2: manter nome · ou acrescentar `_geo`
 export interface BatchConfig {
@@ -239,7 +240,7 @@ export interface JobResult  { total: number; succeeded: number; skipped: number;
 | `photos:preview` | R→M invoke | ✅ Foto reduzida (data URL) para o fundo do editor — o original tem ~36 MP. |
 | `preview:render` | R→M invoke | ✅ Carimba 1 foto em tamanho real com o Sharp e devolve reduzida + tempo, para conferir a fidelidade. |
 | `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` / `profiles:delete` | R→M invoke | ✅ CRUD de perfis `.json` (§8). `load` devolve o template validado, a logo já em PNG e os avisos; `save` com `id` nulo cria arquivo novo. |
-| `logo:pick` | R→M invoke | ✅ Selecionar PNG/SVG da logo → `LogoAsset` (PNG + proporção). |
+| `logo:pick` | R→M invoke | ✅ Selecionar uma ou mais logos → `LogoAsset[]` (PNG + proporção). |
 | `logo:read` | R→M invoke | ✅ Recarregar uma logo já referenciada por um perfil (cache por mtime). |
 | `dialog:pickOutputDir` | R→M invoke | ✅ Pasta de saída do lote (`null` se cancelar). |
 | `batch:start` / `batch:cancel` | R→M invoke | ✅ Rodar/cancelar lote. `start` **resolve com `JobResult`** (não há `batch:done`). |
@@ -354,10 +355,13 @@ N perfis = **um arquivo `.json` por perfil**, e a logo é **referenciada por cam
       { "key": "direction", "visible": true, "showIcon": true, "showLabel": false }
     ]
   },
-  "logo": {
-    "filePath": "C:/Users/thiago/logos/endegro.png",
-    "x": 0.82, "y": 0.86, "widthPct": 0.15, "opacity": 1.0
-  }
+  "logos": [
+    {
+      "id": "logo-1",
+      "filePath": "C:/Users/thiago/logos/endegro.png",
+      "x": 0.82, "y": 0.86, "widthPct": 0.15, "opacity": 1.0
+    }
+  ]
 }
 ```
 

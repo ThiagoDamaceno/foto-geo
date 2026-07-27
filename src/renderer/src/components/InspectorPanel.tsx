@@ -1,14 +1,16 @@
-import { ImageUp, Minus, RotateCcw, Trash2 } from 'lucide-react'
+import { ImageUp, Minus, RotateCcw } from 'lucide-react'
 import type {
   DividerConfig,
   FieldConfig,
   FieldKey,
   LogoAsset,
+  LogoConfig,
   PhotoMetadata,
   SectionConfig,
   Template
 } from '@shared/types'
 import FieldList from './FieldList'
+import LogoList from './LogoList'
 
 /**
  * Controles do carimbo (RF-05/RF-06). Tudo aqui escreve no `Template`, que é a fonte única do
@@ -20,32 +22,32 @@ import FieldList from './FieldList'
 export default function InspectorPanel({
   template,
   photo,
-  logoAsset,
+  logoAssets,
   onPatchSection,
   onReorderFields,
   onPatchField,
   onAddDivider,
   onPatchDivider,
   onRemoveDivider,
-  onPickLogo,
+  onAddLogos,
+  onReorderLogos,
+  onPatchLogo,
   onRemoveLogo,
-  onResizeLogo,
-  onLogoOpacity,
   onReset
 }: {
   template: Template
   photo: PhotoMetadata
-  logoAsset: LogoAsset | null
+  logoAssets: Record<string, LogoAsset>
   onPatchSection: (patch: Partial<SectionConfig>) => void
   onReorderFields: (from: number, to: number) => void
   onPatchField: (key: FieldKey, patch: Partial<Omit<FieldConfig, 'key'>>) => void
   onAddDivider: () => void
   onPatchDivider: (id: string, patch: Partial<Omit<DividerConfig, 'type' | 'id'>>) => void
   onRemoveDivider: (id: string) => void
-  onPickLogo: () => void
-  onRemoveLogo: () => void
-  onResizeLogo: (widthPct: number) => void
-  onLogoOpacity: (opacity: number) => void
+  onAddLogos: () => void
+  onReorderLogos: (from: number, to: number) => void
+  onPatchLogo: (id: string, patch: Partial<Omit<LogoConfig, 'id' | 'filePath'>>) => void
+  onRemoveLogo: (id: string) => void
   onReset: () => void
 }): React.JSX.Element {
   const { section } = template
@@ -168,55 +170,28 @@ export default function InspectorPanel({
         </button>
       </Group>
 
-      <Group title="Logo">
-        {logoAsset ? (
-          <>
-            <div className="flex items-center gap-3">
-              <img
-                src={logoAsset.dataUrl}
-                alt=""
-                className="h-10 w-16 rounded border border-slate-200 bg-slate-100 object-contain p-1 dark:border-slate-700 dark:bg-slate-800"
-              />
-              <button
-                type="button"
-                onClick={onRemoveLogo}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-              >
-                <Trash2 className="size-3.5" aria-hidden />
-                Remover
-              </button>
-            </div>
-            <Slider
-              label="Largura"
-              value={template.logo.widthPct}
-              min={0.02}
-              max={0.6}
-              step={0.005}
-              hint={px(template.logo.widthPct)}
-              onChange={onResizeLogo}
-            />
-            <Slider
-              label="Opacidade"
-              value={template.logo.opacity}
-              min={0.1}
-              max={1}
-              step={0.05}
-              hint={`${Math.round(template.logo.opacity * 100)}%`}
-              onChange={onLogoOpacity}
-            />
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Arraste a logo sobre a foto para posicionar.
-            </p>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={onPickLogo}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <ImageUp className="size-4" aria-hidden />
-            Escolher logo (PNG, SVG, WebP…)
-          </button>
+      <Group title="Logos">
+        <LogoList
+          logos={template.logos}
+          assets={logoAssets}
+          photoWidth={photo.width}
+          onReorder={onReorderLogos}
+          onPatch={onPatchLogo}
+          onRemove={onRemoveLogo}
+        />
+        <button
+          type="button"
+          onClick={onAddLogos}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <ImageUp className="size-4" aria-hidden />
+          Adicionar logo (PNG, SVG, WebP…)
+        </button>
+        {template.logos.length > 0 && (
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            O item de cima fica por cima na foto. Arraste na lista para reordenar; na foto, arraste
+            para posicionar.
+          </p>
         )}
       </Group>
       </div>

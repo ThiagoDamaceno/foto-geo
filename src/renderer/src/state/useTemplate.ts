@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { clampPct } from '@shared/geometry'
+import { createLogo } from '@shared/logo-items'
 import { createDivider } from '@shared/section-items'
 import { cloneDefaultTemplate } from '@shared/template-defaults'
 import { isDivider } from '@shared/types'
@@ -8,14 +9,15 @@ import type {
   FieldConfig,
   FieldKey,
   LogoAsset,
+  LogoConfig,
   SectionConfig,
   Template
 } from '@shared/types'
 
 export interface TemplateState {
   template: Template
-  /** Logo carregada (PNG pronto para o carimbo); `null` quando o perfil não tem logo. */
-  logoAsset: LogoAsset | null
+  /** Logos rasterizadas, indexadas por `LogoConfig.id`. */
+  logoAssets: Record<string, LogoAsset>
   moveSection: (x: number, y: number) => void
   resizeSection: (widthPct: number) => void
   /** Nome do perfil (é o que vai para o `.json` — RF-07). */
@@ -30,15 +32,19 @@ export interface TemplateState {
   addDivider: () => void
   patchDivider: (id: string, patch: Partial<Omit<DividerConfig, 'type' | 'id'>>) => void
   removeDivider: (id: string) => void
-  moveLogo: (x: number, y: number) => void
-  resizeLogo: (widthPct: number) => void
-  setLogoOpacity: (opacity: number) => void
-  setLogoAsset: (asset: LogoAsset | null) => void
+  /** Insere logos no topo da pilha (ficam por cima). */
+  addLogos: (assets: LogoAsset[]) => void
+  /** Ordem = empilhamento (0 = frente). */
+  reorderLogos: (from: number, to: number) => void
+  patchLogo: (id: string, patch: Partial<Omit<LogoConfig, 'id' | 'filePath'>>) => void
+  removeLogo: (id: string) => void
+  moveLogo: (id: string, x: number, y: number) => void
+  resizeLogo: (id: string, widthPct: number) => void
   /**
    * Substitui tudo de uma vez — é assim que um perfil carregado entra no editor (RF-07).
-   * A logo vem junto porque o `Template` só guarda o caminho dela.
+   * As logos vêm junto porque o `Template` só guarda os caminhos.
    */
-  applyTemplate: (template: Template, logo: LogoAsset | null) => void
+  applyTemplate: (template: Template, logos: LogoAsset[]) => void
   reset: () => void
 }
 
@@ -51,7 +57,11 @@ const MIN_LOGO_WIDTH = 0.02
  */
 export function useTemplate(): TemplateState {
   const [template, setTemplate] = useState<Template>(cloneDefaultTemplate)
-  const [logoAsset, setLogoAssetState] = useState<LogoAsset | null>(null)
+  const [logoAssets, setLogoAssets] = useState<Record<string, LogoAsset>>({})
+  // ref espelha o template: `createLogo` (UUID) não pode rodar dentro do updater do
+  // setState — no StrictMode o updater roda 2× e os ids da lista e dos assets divergem.
+  const templateRef = useRef(template)
+  templateRef.current = template
 
   const setName = useCallback((name: string): void => {
     setTemplate((current) => ({ ...current, name }))
@@ -135,52 +145,93 @@ export function useTemplate(): TemplateState {
     }))
   }, [])
 
-  const patchLogo = useCallback((patch: Partial<Template['logo']>): void => {
-    setTemplate((current) => ({ ...current, logo: { ...current.logo, ...patch } }))
+  const addLogos = useCallback((assets: LogoAsset[]): void => {
+    if (assets.length === 0) return
+
+    const stackBase = templateRef.current.logos.length
+    const added = assets.map((asset, index) => createLogo(asset.filePath, stackBase + index))
+
+    setLogoAssets((prev) => {
+      const next = { ...prev }
+      added.forEach((logo, index) => {
+        const asset = assets[index]
+        if (asset) next[logo.id] = asset
+      })
+      return next
+    })
+    // novas no topo da pilha (ficam por cima)
+    setTemplate((current) => ({ ...current, logos: [...added, ...current.logos] }))
+  }, [])
+
+  const reorderLogos = useCallback((from: number, to: number): void => {
+    setTemplate((current) => {
+      const logos = [...current.logos]
+      const [moved] = logos.splice(from, 1)
+      if (!moved) return current
+      logos.splice(to, 0, moved)
+      return { ...current, logos }
+    })
+  }, [])
+
+  const patchLogo = useCallback(
+    (id: string, patch: Partial<Omit<LogoConfig, 'id' | 'filePath'>>): void => {
+      const next = { ...patch }
+      if (next.x !== undefined) next.x = clampPct(next.x)
+      if (next.y !== undefined) next.y = clampPct(next.y)
+      if (next.widthPct !== undefined) next.widthPct = clamp(next.widthPct, MIN_LOGO_WIDTH, 1)
+      if (next.opacity !== undefined) next.opacity = clamp(next.opacity, 0, 1)
+
+      setTemplate((current) => ({
+        ...current,
+        logos: current.logos.map((logo) => (logo.id === id ? { ...logo, ...next } : logo))
+      }))
+    },
+    []
+  )
+
+  const removeLogo = useCallback((id: string): void => {
+    setTemplate((current) => ({
+      ...current,
+      logos: current.logos.filter((logo) => logo.id !== id)
+    }))
+    setLogoAssets((current) => {
+      const { [id]: _removed, ...rest } = current
+      return rest
+    })
   }, [])
 
   const moveLogo = useCallback(
-    (x: number, y: number): void => {
-      patchLogo({ x: clampPct(x), y: clampPct(y) })
+    (id: string, x: number, y: number): void => {
+      patchLogo(id, { x: clampPct(x), y: clampPct(y) })
     },
     [patchLogo]
   )
 
   const resizeLogo = useCallback(
-    (widthPct: number): void => {
-      patchLogo({ widthPct: clamp(widthPct, MIN_LOGO_WIDTH, 1) })
+    (id: string, widthPct: number): void => {
+      patchLogo(id, { widthPct: clamp(widthPct, MIN_LOGO_WIDTH, 1) })
     },
     [patchLogo]
   )
 
-  const setLogoOpacity = useCallback(
-    (opacity: number): void => {
-      patchLogo({ opacity: clamp(opacity, 0, 1) })
-    },
-    [patchLogo]
-  )
-
-  const setLogoAsset = useCallback(
-    (asset: LogoAsset | null): void => {
-      setLogoAssetState(asset)
-      patchLogo({ filePath: asset?.filePath ?? null })
-    },
-    [patchLogo]
-  )
-
-  const applyTemplate = useCallback((next: Template, logo: LogoAsset | null): void => {
+  const applyTemplate = useCallback((next: Template, logos: LogoAsset[]): void => {
     setTemplate(next)
-    setLogoAssetState(logo)
+    const byId: Record<string, LogoAsset> = {}
+    next.logos.forEach((logo, index) => {
+      const asset = logos[index]
+      if (asset) byId[logo.id] = asset
+    })
+    setLogoAssets(byId)
   }, [])
 
   const reset = useCallback((): void => {
     setTemplate(cloneDefaultTemplate())
-    setLogoAssetState(null)
+    setLogoAssets({})
   }, [])
 
   return {
     template,
-    logoAsset,
+    logoAssets,
     setName,
     moveSection,
     resizeSection,
@@ -190,10 +241,12 @@ export function useTemplate(): TemplateState {
     addDivider,
     patchDivider,
     removeDivider,
+    addLogos,
+    reorderLogos,
+    patchLogo,
+    removeLogo,
     moveLogo,
     resizeLogo,
-    setLogoOpacity,
-    setLogoAsset,
     applyTemplate,
     reset
   }

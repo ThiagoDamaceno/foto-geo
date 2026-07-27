@@ -3,11 +3,13 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import { z } from 'zod'
 import { FIELD_ORDER } from '@shared/field-icons'
+import { newLogoId } from '@shared/logo-items'
 import { cloneDefaultTemplate } from '@shared/template-defaults'
 import type {
   DividerConfig,
   FieldConfig,
   FieldKey,
+  LogoAsset,
   LogoConfig,
   ProfileFile,
   ProfileSummary,
@@ -20,7 +22,7 @@ import { loadLogoAsset } from './logo.service'
 
 /**
  * Perfis em JSON (RF-07 / ARQUITETURA.md §8): um arquivo por perfil, o `id` é o nome do
- * arquivo. A logo é **referenciada por caminho**, então N perfis = N logos.
+ * arquivo. Cada logo é **referenciada por caminho** em `template.logos`.
  *
  * Duas regras que valem para tudo aqui:
  *
@@ -97,13 +99,14 @@ const PROPERTY_LABEL: Record<string, string> = {
   opacity: 'opacidade'
 }
 
-const logoSchema = {
-  filePath: z.string().trim().min(1).nullable(),
+const logoSchema = z.object({
+  id: z.string().trim().min(1).max(80),
+  filePath: z.string().trim().min(1),
   x: pct,
   y: pct,
   widthPct: z.number().min(0.02).max(1),
   opacity: pct
-} satisfies { [K in keyof LogoConfig]: z.ZodType<LogoConfig[K]> }
+})
 
 // ── Leitura ──────────────────────────────────────────────────────────────────────────────
 
@@ -129,14 +132,19 @@ export async function listProfiles(): Promise<ProfileSummary[]> {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 
-/** Carrega um perfil já validado, com a logo resolvida e a lista do que foi corrigido. */
+/** Carrega um perfil já validado, com as logos resolvidas e a lista do que foi corrigido. */
 export async function loadProfile(id: string): Promise<ProfileFile> {
   const filePath = profilePath(id)
   const raw = await readJson(filePath)
   const { template, warnings } = parseTemplate(raw, fallbackName(id))
-  const { logo, warning } = await resolveLogo(template)
+  const resolved = await resolveLogos(template.logos)
 
-  return { id, template, logo, warnings: warning ? [...warnings, warning] : warnings }
+  return {
+    id,
+    template: { ...template, logos: resolved.logos },
+    logos: resolved.assets,
+    warnings: [...warnings, ...resolved.warnings]
+  }
 }
 
 // ── Gravação ─────────────────────────────────────────────────────────────────────────────
@@ -203,16 +211,61 @@ function parseTemplate(raw: unknown, defaultName: string): { template: Template;
   }
   template.section.fields = normalizeFields(section.fields, template.section.fields, warnings)
 
-  const logo = isRecord(source.logo) ? source.logo : {}
-  if (source.logo !== undefined && !isRecord(source.logo)) {
-    warnings.push('Logo inválida — posição padrão aplicada.')
-  }
-
-  for (const [key, schema] of Object.entries(logoSchema)) {
-    assign(template.logo, key as keyof typeof logoSchema, schema, logo[key], warnings, 'Logo')
-  }
+  template.logos = normalizeLogos(source, warnings)
 
   return { template, warnings }
+}
+
+/**
+ * Aceita `logos[]` (formato atual) ou o antigo `logo` singular.
+ * Entradas inválidas saem; ids duplicados ganham um id novo.
+ */
+function normalizeLogos(source: Record<string, unknown>, warnings: string[]): LogoConfig[] {
+  let rawList: unknown[]
+
+  if (Array.isArray(source.logos)) {
+    rawList = source.logos
+  } else if (isRecord(source.logo) && typeof source.logo.filePath === 'string' && source.logo.filePath) {
+    rawList = [source.logo]
+  } else {
+    if (source.logos !== undefined) warnings.push('Lista de logos inválida — nenhuma logo aplicada.')
+    else if (source.logo !== undefined) warnings.push('Logo inválida — removida.')
+    return []
+  }
+
+  const seen = new Set<string>()
+  const logos: LogoConfig[] = []
+
+  for (const entry of rawList) {
+    if (!isRecord(entry)) {
+      warnings.push('Item de logo inválido — ignorado.')
+      continue
+    }
+
+    const parsed = logoSchema.safeParse({
+      id: typeof entry.id === 'string' && entry.id.trim() ? entry.id : newLogoId(),
+      filePath: entry.filePath,
+      x: entry.x,
+      y: entry.y,
+      widthPct: entry.widthPct,
+      opacity: entry.opacity
+    })
+
+    if (!parsed.success) {
+      warnings.push('Item de logo inválido — ignorado.')
+      continue
+    }
+
+    let { id } = parsed.data
+    if (seen.has(id)) {
+      id = newLogoId()
+      warnings.push('Id de logo duplicado — regenerado.')
+    }
+    seen.add(id)
+    logos.push({ ...parsed.data, id })
+  }
+
+  return logos
 }
 
 /**
@@ -357,19 +410,27 @@ async function summarize(id: string): Promise<ProfileSummary | null> {
   }
 }
 
-/** Logo do perfil (RF-06). Arquivo movido/apagado não impede abrir o perfil (RNF-08). */
-async function resolveLogo(
-  template: Template
-): Promise<{ logo: ProfileFile['logo']; warning?: string }> {
-  if (!template.logo.filePath) return { logo: null }
+/**
+ * Carrega as logos do perfil (RF-06). Arquivo ausente/ilegível é **ignorado** (sai da lista)
+ * e vira aviso — o resto do perfil abre normalmente (RNF-08).
+ */
+async function resolveLogos(
+  logos: LogoConfig[]
+): Promise<{ logos: LogoConfig[]; assets: LogoAsset[]; warnings: string[] }> {
+  const kept: LogoConfig[] = []
+  const assets: LogoAsset[] = []
+  const warnings: string[] = []
 
-  try {
-    return { logo: await loadLogoAsset(template.logo.filePath) }
-  } catch {
-    // o caminho fica no perfil de propósito: a logo pode estar num drive desconectado, e
-    // apagar a referência sozinho perderia a configuração do usuário
-    return { logo: null, warning: `Logo não encontrada: ${template.logo.filePath}` }
+  for (const logo of logos) {
+    try {
+      assets.push(await loadLogoAsset(logo.filePath))
+      kept.push(logo)
+    } catch {
+      warnings.push(`Logo ignorada (arquivo não encontrado): ${logo.filePath}`)
+    }
   }
+
+  return { logos: kept, assets, warnings }
 }
 
 // ── Nomes e ids ──────────────────────────────────────────────────────────────────────────

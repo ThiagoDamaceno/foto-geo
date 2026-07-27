@@ -20,10 +20,11 @@ export interface OverlayInput {
   icons: Partial<Record<FieldKey, string>>
   /** `data:font/ttf;base64,…` da Roboto embarcada, quando disponível (§9.1). */
   fontDataUrl?: string
-  /** Logo já convertida em data URI PNG (origem pode ser SVG/WebP/etc.). */
-  logoDataUrl?: string
-  /** largura/altura da logo — define a altura da caixa. */
-  logoAspectRatio?: number
+  /**
+   * Logos rasterizadas, alinhadas por `id` com `template.logos`.
+   * Na lista, índice 0 fica por cima — o SVG desenha do fundo para a frente.
+   */
+  logos?: Array<{ id: string; dataUrl: string; aspectRatio: number }>
 }
 
 export interface Overlay {
@@ -106,10 +107,14 @@ export function buildOverlaySvg(input: OverlayInput): Overlay {
     rowTop += rowHeight + metrics.lineGap
   })
 
-  if (input.logoDataUrl) {
-    const box = logoBox(template.logo, size, input.logoAspectRatio ?? 1)
+  const logoById = new Map((input.logos ?? []).map((logo) => [logo.id, logo]))
+  // desenha do fim para o início: o primeiro da lista fica por cima no SVG
+  for (const logo of [...template.logos].reverse()) {
+    const asset = logoById.get(logo.id)
+    if (!asset) continue
+    const box = logoBox(logo, size, asset.aspectRatio)
     parts.push(
-      `<image x="${round(box.x)}" y="${round(box.y)}" width="${round(box.width)}" height="${round(box.height)}" opacity="${template.logo.opacity}" href="${escapeXml(input.logoDataUrl)}" preserveAspectRatio="xMidYMid meet"/>`
+      `<image x="${round(box.x)}" y="${round(box.y)}" width="${round(box.width)}" height="${round(box.height)}" opacity="${logo.opacity}" href="${escapeXml(asset.dataUrl)}" preserveAspectRatio="xMidYMid meet"/>`
     )
   }
 

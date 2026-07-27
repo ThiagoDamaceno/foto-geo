@@ -29,7 +29,7 @@ export default function App(): React.JSX.Element {
   } = usePhotos()
   const {
     template,
-    logoAsset,
+    logoAssets,
     setName,
     moveSection,
     resizeSection,
@@ -39,10 +39,12 @@ export default function App(): React.JSX.Element {
     addDivider,
     patchDivider,
     removeDivider,
+    addLogos,
+    reorderLogos,
+    patchLogo,
+    removeLogo,
     moveLogo,
     resizeLogo,
-    setLogoOpacity,
-    setLogoAsset,
     applyTemplate,
     reset
   } = useTemplate()
@@ -52,15 +54,15 @@ export default function App(): React.JSX.Element {
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
 
-  const pickLogo = useCallback(async (): Promise<void> => {
+  const pickLogos = useCallback(async (): Promise<void> => {
     setLogoError(null)
     try {
-      const asset = await window.fotoGeo.pickLogo()
-      if (asset) setLogoAsset(asset)
+      const assets = await window.fotoGeo.pickLogo()
+      if (assets.length > 0) addLogos(assets)
     } catch (cause) {
       setLogoError(cause instanceof Error ? cause.message : String(cause))
     }
-  }, [setLogoAsset])
+  }, [addLogos])
 
   /** Foto de referência do editor: a escolhida, ou a primeira com telemetria e tamanho. */
   const selected = useMemo(() => {
@@ -167,7 +169,7 @@ export default function App(): React.JSX.Element {
                   <EditorCanvas
                     photo={selected}
                     template={template}
-                    logoAsset={logoAsset}
+                    logoAssets={logoAssets}
                     onMoveSection={moveSection}
                     onResizeSection={resizeSection}
                     onMoveLogo={moveLogo}
@@ -203,17 +205,17 @@ export default function App(): React.JSX.Element {
                 <InspectorPanel
                   template={template}
                   photo={selected}
-                  logoAsset={logoAsset}
+                  logoAssets={logoAssets}
                   onPatchSection={patchSection}
                   onReorderFields={reorderFields}
                   onPatchField={patchField}
                   onAddDivider={addDivider}
                   onPatchDivider={patchDivider}
                   onRemoveDivider={removeDivider}
-                  onPickLogo={() => void pickLogo()}
-                  onRemoveLogo={() => setLogoAsset(null)}
-                  onResizeLogo={resizeLogo}
-                  onLogoOpacity={setLogoOpacity}
+                  onAddLogos={() => void pickLogos()}
+                  onReorderLogos={reorderLogos}
+                  onPatchLogo={patchLogo}
+                  onRemoveLogo={removeLogo}
                   onReset={reset}
                 />
               ) : (

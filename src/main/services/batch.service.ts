@@ -206,7 +206,7 @@ async function processPhoto(
  * melhor contar como ignorada e dizer isso no resumo.
  */
 function hasContentToStamp(photo: PhotoMetadata, template: Template): boolean {
-  if (template.logo.filePath) return true
+  if (template.logos.length > 0) return true
   return template.section.fields.some(
     (item) =>
       !isDivider(item) && item.visible && Boolean(formatFieldValue(item.key, photo))
@@ -241,7 +241,7 @@ function parseConfig(raw: unknown): BatchConfig {
   if (typeof outputDir !== 'string' || outputDir.trim() === '' || !isAbsolute(outputDir)) {
     throw new Error('Escolha a pasta de saída')
   }
-  if (!template || typeof template !== 'object' || !template.section || !template.logo) {
+  if (!template || typeof template !== 'object' || !template.section || !Array.isArray(template.logos)) {
     throw new Error('Template inválido')
   }
 

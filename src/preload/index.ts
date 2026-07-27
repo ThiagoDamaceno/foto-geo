@@ -25,7 +25,7 @@ const api: FotoGeoApi = {
     ipcRenderer.invoke(IPC.previewImage, filePath, maxWidth) as Promise<PreviewImage>,
   renderPreview: (photo, template, maxWidth) =>
     ipcRenderer.invoke(IPC.renderPreview, photo, template, maxWidth) as Promise<RenderedPreview>,
-  pickLogo: () => ipcRenderer.invoke(IPC.pickLogo) as Promise<LogoAsset | null>,
+  pickLogo: () => ipcRenderer.invoke(IPC.pickLogo) as Promise<LogoAsset[]>,
   readLogo: (filePath) => ipcRenderer.invoke(IPC.readLogo, filePath) as Promise<LogoAsset>,
   listProfiles: () => ipcRenderer.invoke(IPC.profilesList) as Promise<ProfileSummary[]>,
   loadProfile: (id) => ipcRenderer.invoke(IPC.profilesLoad, id) as Promise<ProfileFile>,
