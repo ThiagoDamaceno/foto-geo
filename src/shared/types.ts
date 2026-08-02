@@ -289,4 +289,9 @@ export interface FotoGeoApi {
   openPath: (target: string) => Promise<void>
   /** Assina o andamento do lote; devolve a função que cancela a assinatura. */
   onBatchProgress: (listener: (progress: JobProgress) => void) => () => void
+  /**
+   * Roboto embarcada (`data:font/ttf;base64,…`) para o SVG do editor.
+   * `undefined` se o arquivo não estiver no pacote.
+   */
+  getOverlayFont: () => Promise<string | undefined>
 }

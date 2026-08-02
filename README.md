@@ -137,7 +137,7 @@ src/
 │       ├── state/              # usePhotos, useTemplate, useProfiles, useBatch
 │       └── lib/                # theme, ipc-error, ícones da UI e do carimbo
 └── shared/                     # tipos, IPC, geometria, overlay-svg, formatação (os dois lados)
-assets/fonts/                   # roboto.ttf (embarcada, offline) — ainda pendente
+assets/fonts/                   # roboto.ttf (embarcada, offline)
 ```
 
 ## O que já funciona

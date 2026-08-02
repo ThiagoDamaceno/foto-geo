@@ -402,13 +402,10 @@ Como os dois lados usam a **mesma origem de ícones (Lucide)**, o preview bate c
 
 ### 9.1 Fonte (Roboto, offline)
 
-`assets/fonts/roboto.ttf` é embarcada. No Renderer, carregada via `@font-face` local (nada de CDN — mantém offline). No Main, o `.ttf` é lido e **embutido em base64** dentro do SVG (`@font-face` no `<defs>`) para o Sharp desenhar o texto **idêntico** ao preview.
-
-> **Pendente:** o arquivo `roboto.ttf` ainda não está no repo. Enquanto isso o SVG declara
-> `'Roboto', sans-serif` e **os dois lados caem na mesma sans-serif do sistema** (na verificação
-> em WSL, Chromium e librsvg escolheram a mesma). Ao adicionar a fonte, atenção: o
-> `@font-face` embutido resolve o Chromium, mas o **librsvg usa fontconfig** — no empacotamento
-> pode ser preciso apontar `FONTCONFIG_FILE` para uma conf que inclua `assets/fonts/`.
+`assets/fonts/roboto.ttf` é embarcada (OFL) e vai em `resources/fonts` no `.exe`. No Renderer,
+data URL via IPC + `@font-face` no SVG do preview. No Main, o carimbo SVG vira PNG com
+**`@resvg/resvg-js`** (`fontFiles` → Roboto) e o Sharp só compõe sobre a foto — o librsvg do
+Sharp no Windows não carrega fonte custom de forma confiável.
 
 ---
 
@@ -480,7 +477,7 @@ real, extrai `raw()` e reduz num **segundo** `sharp()`.
 | Arquivos grandes (~25 MB, 8064 px) em lote | `sharp` + `p-limit` com **teto 4** (memória ~150 MB/foto); SVG do overlay na largura real. |
 | Perfil de versão antiga (ou editado à mão) deixar o editor num estado impossível | Validação por propriedade com `zod` na leitura, com os limites do inspector: inválido cai no padrão **e avisa na tela**, ausente cai no padrão em silêncio (§8). JSON corrompido aparece na lista como "(ilegível)" em vez de derrubar a lista. |
 | PNG/BMP sem EXIF de GPS (caso secundário) | Mostrar `present[]` por foto (RF-02); regra p/ ausência (a confirmar) — não é o fluxo principal. |
-| Roboto diferente entre tela e Sharp | Embutir `roboto.ttf` em base64 (`@font-face`) no SVG usado pelo Sharp (§9.1). **Enquanto a fonte não entra**, os dois lados caem na sans-serif do sistema; o `librsvg` resolve fonte por **fontconfig**, então a Roboto embarcada exigirá conf própria no empacotamento. |
+| Roboto diferente entre tela e Sharp | Chromium: base64 no SVG. Sharp: `FONTCONFIG_FILE` → `assets/fonts` (desempacotada). §9.1. |
 | `sharp` dentro do Electron no Linux | Aviso `[SharpElectronLinux]` + ruído `GLib-GObject`. Em lote paralelo o processo pode **SIGTRAP** (signal 5) e o app some. Mitigação: no Linux o lote roda **1 foto por vez** e `sharp.concurrency(1)`. Alvo é Windows — `REQUISITOS.md §11.3`. |
 | XMP DJI não lido | `exiftool-vendored`. |
 | Módulos nativos no build | `electron-builder` + rebuild; testar `.exe` em Windows real. |
@@ -581,9 +578,8 @@ Complementa a tabela de riscos (§13); aqui o foco é operacional.
   terminal **não** são o crash — o crash é o processo sumir (`Done in …s`).
 - **Ordem no Sharp:** `resize` roda **antes** de `composite` independentemente da ordem das
   chamadas. Compor e reduzir no mesmo pipeline quebra — o `renderPreview` usa dois `sharp()`.
-- **`roboto.ttf` ainda não está no repo:** os dois lados caem na sans-serif do sistema.
-  Quando entrar, o Chromium resolve via `@font-face` no SVG, mas o **librsvg usa fontconfig**
-  — no `.exe` pode ser preciso `FONTCONFIG_FILE` apontando para `assets/fonts/`.
+- **Roboto:** Chromium via data URL no SVG; Sharp via `FONTCONFIG_FILE` + `asarUnpack` de
+  `assets/fonts` (§9.1).
 - **Binários nativos:** `sharp` e `exiftool-vendored` precisam dos builds **win-x64** no
   empacotamento; o `node_modules` do WSL **não** serve no Windows (e o inverso também).
 - **WSL ≠ produto:** DnD do Explorer não chega no WSLg; GPU desligada no Linux. O spam

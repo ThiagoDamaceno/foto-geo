@@ -12,6 +12,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const packages = [
   '@img/sharp-win32-x64@0.35.3',
   '@img/sharp-libvips-win32-x64@1.3.2',
+  '@resvg/resvg-js-win32-x64-msvc@2.6.2',
   'exiftool-vendored.exe@13.59.0'
 ]
 
@@ -34,6 +35,7 @@ if (result.status !== 0) {
 const required = [
   'node_modules/@img/sharp-win32-x64',
   'node_modules/@img/sharp-libvips-win32-x64',
+  'node_modules/@resvg/resvg-js-win32-x64-msvc',
   'node_modules/exiftool-vendored.exe'
 ]
 

@@ -52,6 +52,7 @@ export default function App(): React.JSX.Element {
   const profiles = useProfiles(template, applyTemplate, reset)
   const batch = useBatch(template)
   const [info, setInfo] = useState<AppInfo | null>(null)
+  const [fontDataUrl, setFontDataUrl] = useState<string | undefined>()
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [selectedLogoId, setSelectedLogoId] = useState<string | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
@@ -93,6 +94,26 @@ export default function App(): React.JSX.Element {
       setSelectedPath(null)
     }
   }, [photos, selectedPath])
+
+  useEffect(() => {
+    void window.fotoGeo
+      .getOverlayFont()
+      .then((url) => setFontDataUrl(url))
+      .catch(() => setFontDataUrl(undefined))
+  }, [])
+
+  // UI (Tailwind) usa Roboto via @font-face injetado — o arquivo fica só em assets/fonts/
+  useEffect(() => {
+    if (!fontDataUrl) return
+    const style = document.createElement('style')
+    style.setAttribute('data-foto-geo-font', 'roboto')
+    style.textContent =
+      `@font-face{font-family:'Roboto';src:url('${fontDataUrl}') format('truetype');font-display:block;}`
+    document.head.appendChild(style)
+    return () => {
+      style.remove()
+    }
+  }, [fontDataUrl])
 
   useEffect(() => {
     // Sem console para o usuário (RNF-10): um erro aqui não pode derrubar a árvore
@@ -197,6 +218,7 @@ export default function App(): React.JSX.Element {
                     photo={selected}
                     template={template}
                     logoAssets={logoAssets}
+                    fontDataUrl={fontDataUrl}
                     selectedLogoId={selectedLogoId}
                     onSelectedLogoId={setSelectedLogoId}
                     onMoveSection={moveSection}

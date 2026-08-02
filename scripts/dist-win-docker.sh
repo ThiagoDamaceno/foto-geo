@@ -29,11 +29,13 @@ echo "==> Forçando nativos win32-x64 (depois do build — yarn/npm pulam outro 
 npm install --no-save --os=win32 --cpu=x64 \
   @img/sharp-win32-x64@0.35.3 \
   @img/sharp-libvips-win32-x64@1.3.2 \
+  @resvg/resvg-js-win32-x64-msvc@2.6.2 \
   exiftool-vendored.exe@13.59.0
 
 for d in \
   node_modules/@img/sharp-win32-x64 \
   node_modules/@img/sharp-libvips-win32-x64 \
+  node_modules/@resvg/resvg-js-win32-x64-msvc \
   node_modules/exiftool-vendored.exe
 do
   if [[ ! -d "$d" ]]; then
@@ -41,7 +43,7 @@ do
     exit 1
   fi
 done
-echo "    OK: sharp-win32-x64 + libvips-win32 + exiftool-vendored.exe"
+echo "    OK: sharp-win32 + resvg-win32 + exiftool.exe"
 
 echo "==> electron-builder --win portable zip"
 npx electron-builder --win portable zip --x64 --publish never
@@ -59,6 +61,19 @@ if [[ -d "$UNPACKED_NM/exiftool-vendored.exe" ]]; then
   echo "    OK: exiftool-vendored.exe presente em win-unpacked"
 else
   echo "    ERRO: exiftool-vendored.exe não encontrado em win-unpacked" >&2
+  exit 1
+fi
+if [[ -f dist/win-unpacked/resources/fonts/roboto.ttf ]]; then
+  echo "    OK: resources/fonts/roboto.ttf"
+else
+  echo "    ERRO: resources/fonts/roboto.ttf ausente" >&2
+  exit 1
+fi
+if [[ -d "$UNPACKED_NM/@resvg/resvg-js-win32-x64-msvc" ]] || [[ -d "$UNPACKED_NM/@resvg/resvg-js" ]]; then
+  echo "    OK: @resvg presente em win-unpacked"
+else
+  echo "    ERRO: @resvg ausente em win-unpacked" >&2
+  find dist/win-unpacked/resources -path '*resvg*' 2>/dev/null | head -20 >&2 || true
   exit 1
 fi
 # Confirma que nativos linux não foram embutidos

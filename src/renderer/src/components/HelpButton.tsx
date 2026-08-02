@@ -31,7 +31,7 @@ export default function HelpButton(): React.JSX.Element {
         onClick={() => setOpen(true)}
         title="Ajuda e atalhos"
         aria-label="Ajuda e atalhos"
-        className="flex size-9 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <CircleHelp className="size-4" aria-hidden />
       </button>

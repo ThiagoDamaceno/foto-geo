@@ -1,8 +1,7 @@
 import { join } from 'node:path'
 import { app, shell, BrowserWindow, Menu, nativeTheme } from 'electron'
 import { electronApp, is } from '@electron-toolkit/utils'
-import { registerIpcHandlers } from './ipc/handlers'
-import { disposeExifTool } from './services/exif.service'
+import { setupFontsBeforeSharp } from './services/font-env'
 import { applyContentSecurityPolicy } from './security'
 import { hardenWindowShortcuts, DEVTOOLS_ENABLED } from './shortcuts'
 
@@ -11,6 +10,14 @@ import { hardenWindowShortcuts, DEVTOOLS_ENABLED } from './shortcuts'
 // Linux (ambiente de dev) já subimos sem aceleração — menos ruído, mesmo resultado.
 if (process.platform === 'linux') {
   app.disableHardwareAcceleration()
+}
+
+// CRÍTICO: fontconfig tem de existir ANTES do 1º require('sharp').
+// Os handlers (que puxam o Sharp) entram só via import() dinâmico abaixo.
+try {
+  setupFontsBeforeSharp()
+} catch (err) {
+  console.warn('[foto-geo] fonte Roboto indisponível:', err)
 }
 
 function createWindow(): BrowserWindow {
@@ -67,27 +74,31 @@ if (!app.requestSingleInstanceLock()) {
     }
   })
 
-  void app.whenReady().then(() => {
+  void app.whenReady().then(async () => {
     electronApp.setAppUserModelId('br.com.brtk.fotogeo')
     // Sem menu nativo: tira também o "View → Toggle Developer Tools" (RNF-10).
     Menu.setApplicationMenu(null)
     applyContentSecurityPolicy()
-    registerIpcHandlers()
 
+    // Sharp só depois do FONTCONFIG_* (evita sans-serif genérica no .exe Windows)
+    const { registerIpcHandlers } = await import('./ipc/handlers')
+    const { disposeExifTool } = await import('./services/exif.service')
+
+    registerIpcHandlers()
     createWindow()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
+
+    // O exiftool roda em processos filhos — sem isso eles ficariam órfãos.
+    app.on('will-quit', (event) => {
+      event.preventDefault()
+      void disposeExifTool().finally(() => app.exit(0))
+    })
   })
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
-  })
-
-  // O exiftool roda em processos filhos — sem isso eles ficariam órfãos.
-  app.on('will-quit', (event) => {
-    event.preventDefault()
-    void disposeExifTool().finally(() => app.exit(0))
   })
 }

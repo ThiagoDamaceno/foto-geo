@@ -19,5 +19,7 @@ export const IPC = {
   batchCancel: 'batch:cancel',
   /** Único canal M→R do app: o resultado do lote volta no `invoke` do `batch:start`. */
   batchProgress: 'batch:progress',
-  openPath: 'shell:openPath'
+  openPath: 'shell:openPath',
+  /** Roboto embarcada como data URL — preview SVG no Chromium (§9.1). */
+  overlayFont: 'fonts:overlay'
 } as const

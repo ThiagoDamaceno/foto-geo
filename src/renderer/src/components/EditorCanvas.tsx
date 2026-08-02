@@ -25,6 +25,7 @@ export default function EditorCanvas({
   photo,
   template,
   logoAssets,
+  fontDataUrl,
   selectedLogoId,
   onSelectedLogoId,
   onMoveSection,
@@ -36,6 +37,8 @@ export default function EditorCanvas({
   photo: PhotoMetadata
   template: Template
   logoAssets: Record<string, LogoAsset>
+  /** Roboto embutida — o `<img src=data:svg>` não herda o `@font-face` da página. */
+  fontDataUrl?: string
   /** Seleção vinda da lista do inspector (null = nenhuma logo focada lá). */
   selectedLogoId: string | null
   onSelectedLogoId: (id: string | null) => void
@@ -138,9 +141,10 @@ export default function EditorCanvas({
       template,
       photo,
       icons: ICON_MARKUP,
-      logos: overlayLogos
+      logos: overlayLogos,
+      ...(fontDataUrl ? { fontDataUrl } : {})
     })
-  }, [photo, template, overlayLogos])
+  }, [photo, template, overlayLogos, fontDataUrl])
 
   const showView = useCallback(async (): Promise<void> => {
     const gen = ++viewGen.current

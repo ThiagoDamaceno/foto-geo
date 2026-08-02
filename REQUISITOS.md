@@ -193,7 +193,7 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 **Fase 1 (MVP)** — estado em 7 dos 9 passos do `ARQUITETURA.md §14`:
 - ✅ Import N imagens + mapeamento/listagem de metadados.
 - ✅ Editor: seção com campos empilhados, reordenar por DnD, local/tamanho/fonte, ícones fixos (Lucide).
-  *(fonte Roboto pendente do arquivo `assets/fonts/roboto.ttf` — hoje cai na sans-serif do sistema)*
+  *(fonte Roboto em `assets/fonts/roboto.ttf`)*
 - ✅ Logo importada (PNG/SVG) com posicionamento livre.
 - ✅ Preview fiel + preservar originais + **aplicação em lote** (progresso, cancelar, resumo).
 - ✅ Perfis em **JSON** (salvar/carregar/duplicar/excluir, cada um com sua logo).

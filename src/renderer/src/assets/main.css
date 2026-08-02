@@ -9,14 +9,7 @@
    especificidade de atributo e vence sempre. */
 @custom-variant dark (&:is([data-theme='dark'], [data-theme='dark'] *));
 
-/* Fonte embarcada (offline) — ARQUITETURA.md §9.1.
-   Descomentar quando assets/fonts/roboto.ttf entrar no repo.
-@font-face {
-  font-family: 'Roboto';
-  src: url('../../../../assets/fonts/roboto.ttf') format('truetype');
-  font-display: block;
-}
-*/
+/* Roboto: @font-face injetado em runtime a partir de assets/fonts/roboto.ttf (§9.1). */
 
 @theme {
   --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;

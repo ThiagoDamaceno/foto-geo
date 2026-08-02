@@ -7,6 +7,7 @@ import { cancelBatch, runBatch } from '../services/batch.service'
 import { loadLogoAsset } from '../services/logo.service'
 import { collectImagePaths } from '../services/files.service'
 import { scanPhotos } from '../services/exif.service'
+import { loadRobotoDataUrl } from '../services/font.service'
 import { getPreviewImage, renderPreview } from '../services/render.service'
 import {
   deleteProfile,
@@ -78,6 +79,7 @@ export function registerIpcHandlers(): void {
   )
   ipcMain.handle(IPC.batchCancel, () => cancelBatch())
   ipcMain.handle(IPC.openPath, (_event, target: unknown) => openFolder(target))
+  ipcMain.handle(IPC.overlayFont, () => loadRobotoDataUrl())
 }
 
 /** Caminho vindo do Renderer passa pela mesma validação do import (ARQUITETURA.md §11). */

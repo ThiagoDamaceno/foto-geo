@@ -1,6 +1,6 @@
 {
   "name": "foto-geo",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "Editor de carimbo de telemetria para fotos de drone (offline)",
   "main": "./out/main/index.js",
   "author": "BRTK",
@@ -26,6 +26,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@resvg/resvg-js": "2.6.2",
     "exiftool-vendored": "^37.0.0",
     "lucide-react": "^0.545.0",
     "lucide-static": "^1.27.0",
@@ -38,6 +39,7 @@
   "optionalDependencies": {
     "@img/sharp-libvips-win32-x64": "1.3.2",
     "@img/sharp-win32-x64": "0.35.3",
+    "@resvg/resvg-js-win32-x64-msvc": "2.6.2",
     "exiftool-vendored.exe": "13.59.0"
   },
   "devDependencies": {

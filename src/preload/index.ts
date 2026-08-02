@@ -45,7 +45,8 @@ const api: FotoGeoApi = {
     return () => {
       ipcRenderer.removeListener(IPC.batchProgress, handler)
     }
-  }
+  },
+  getOverlayFont: () => ipcRenderer.invoke(IPC.overlayFont) as Promise<string | undefined>
 }
 
 if (process.contextIsolated) {

@@ -21,12 +21,21 @@ files:
   - '!**/node_modules/@img/sharp-libvips-darwin*/**'
   - '!**/node_modules/exiftool-vendored.pl/**'
 
+# Fontes fora do asar, em resources/fonts — caminho estável p/ FONTCONFIG no Windows
+extraResources:
+  - from: assets/fonts
+    to: fonts
+    filter:
+      - '**/*'
+      - '!**/*.md'
+
 asar: true
 
 # nativos precisam ficar fora do asar
 asarUnpack:
   - '**/node_modules/sharp/**'
   - '**/node_modules/@img/**'
+  - '**/node_modules/@resvg/**'
   - '**/node_modules/exiftool-vendored/**'
   - '**/node_modules/exiftool-vendored.exe/**'
 

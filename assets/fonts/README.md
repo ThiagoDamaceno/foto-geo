@@ -1,1 +1,7 @@
-Coloque aqui roboto.ttf (ARQUITETURA.md §9.1) — usado no preview e embutido em base64 no SVG do render final.
+# Fontes embarcadas
+
+- `roboto.ttf` — Roboto Regular (OFL), carimbo + UI.
+- `fonts.conf` — legado/fontconfig (o export usa `@resvg/resvg-js` + este `.ttf`).
+- `OFL.txt` — licença.
+
+No `.exe`: `resources/fonts` (`extraResources`).

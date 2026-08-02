@@ -1,16 +1,15 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import { app } from 'electron'
 import sharp from 'sharp'
 import { buildOverlaySvg } from '@shared/overlay-svg'
 import type { Size } from '@shared/geometry'
 import type { PhotoMetadata, PreviewImage, RenderedPreview, Template } from '@shared/types'
+import { loadRobotoDataUrl } from './font.service'
 import { ICON_MARKUP } from './icon-markup'
 import { loadLogoAsset } from './logo.service'
+import { rasterizeOverlaySvg } from './overlay-raster'
 
 /**
- * Render do carimbo (ARQUITETURA.md §10): o SVG vem do gerador compartilhado e o Sharp só
- * compõe sobre a foto. O original nunca é tocado (RF-10) — sempre saída nova.
+ * Render do carimbo (ARQUITETURA.md §10): SVG compartilhado → PNG (resvg + Roboto) →
+ * Sharp compõe sobre a foto. O original nunca é tocado (RF-10).
  */
 
 // No Linux o libvips do sharp divide com a GLib do Electron; várias threads + fotos 36 MP
@@ -23,11 +22,14 @@ if (process.platform !== 'win32') {
 const PREVIEW_QUALITY = 82
 
 /**
- * Qualidade da cópia carimbada. Medido nas fotos do Lito X1 (8064 × 4536):
- * `mozjpeg` levava 4,9 s e gerava 8,2 MB; o encoder normal leva 1,1 s e gera 9,8 MB.
- * 4× mais rápido por ~15% de arquivo é a troca certa para lote (RNF-06).
+ * Saída do lote: prioriza fidelidade à original (menos perda), não o menor arquivo.
+ * `4:4:4` evita subsample de cor; 98 fica perto do JPEG da câmera (recompressão
+ * sempre reduz um pouco o tamanho — 23 MB → ~18–22 MB é o esperado, não 10 MB).
  */
-const OUTPUT_QUALITY = 92
+const OUTPUT_JPEG = {
+  quality: 98,
+  chromaSubsampling: '4:4:4' as const
+}
 
 /** Foto reduzida para o fundo do editor. */
 export async function getPreviewImage(filePath: string, maxWidth: number): Promise<PreviewImage> {
@@ -60,13 +62,11 @@ export async function renderPreview(
   const svg = await buildSvg(photo, template, source)
   const started = process.hrtime.bigint()
 
-  // Dois passos de propósito: o Sharp aplica `resize` ANTES de `composite`, então compor e
-  // reduzir no mesmo pipeline tentaria encaixar um SVG de 8064 px numa base já reduzida
-  // ("Image to composite must have same dimensions or smaller"). Aqui o carimbo é aplicado
-  // em tamanho real — como na saída — e só depois a imagem é reduzida para caber na tela.
+  // Overlay vira PNG via resvg (fonte confiável no Windows); Sharp só compõe/redimensiona.
+  const overlay = rasterizeOverlaySvg(svg, source)
   const composed = await sharp(photo.filePath)
     .rotate()
-    .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+    .composite([{ input: overlay, top: 0, left: 0 }])
     .raw()
     .toBuffer({ resolveWithObject: true })
 
@@ -100,16 +100,18 @@ export async function renderPhotoToFile(
   const source = await effectiveSize(photo.filePath)
   const svg = await buildSvg(photo, template, source)
 
+  const overlay = rasterizeOverlaySvg(svg, source)
+
   await sharp(photo.filePath)
     .rotate()
-    .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-    .jpeg({ quality: OUTPUT_QUALITY })
+    .composite([{ input: overlay, top: 0, left: 0 }])
+    .jpeg(OUTPUT_JPEG)
     .keepMetadata()
     .toFile(outputPath)
 }
 
 async function buildSvg(photo: PhotoMetadata, template: Template, size: Size): Promise<string> {
-  const fontDataUrl = await loadFontDataUrl()
+  const fontDataUrl = await loadRobotoDataUrl()
   const logos = await loadLogos(template)
 
   return buildOverlaySvg({
@@ -149,25 +151,6 @@ async function effectiveSize(filePath: string): Promise<Size> {
   const { width = 0, height = 0, orientation } = await sharp(filePath).metadata()
   const swap = (orientation ?? 1) >= 5
   return { width: swap ? height : width, height: swap ? width : height }
-}
-
-/**
- * Roboto embarcada (§9.1). Enquanto `assets/fonts/roboto.ttf` não existir, o SVG cai na
- * `sans-serif` do sistema nos dois lados.
- */
-let fontDataUrlCache: string | null | undefined
-
-async function loadFontDataUrl(): Promise<string | undefined> {
-  if (fontDataUrlCache !== undefined) return fontDataUrlCache ?? undefined
-
-  try {
-    const file = await readFile(join(app.getAppPath(), 'assets', 'fonts', 'roboto.ttf'))
-    fontDataUrlCache = `data:font/ttf;base64,${file.toString('base64')}`
-  } catch {
-    fontDataUrlCache = null
-  }
-
-  return fontDataUrlCache ?? undefined
 }
 
 function toDataUrl(data: Buffer): string {
