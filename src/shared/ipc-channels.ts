@@ -7,6 +7,8 @@ export const IPC = {
   scanPhotos: 'photos:scan',
   previewImage: 'photos:preview',
   renderPreview: 'preview:render',
+  /** Tamanho do arquivo de saída desta foto na qualidade atual (RF-11). */
+  outputEstimate: 'output:estimate',
   pickLogo: 'logo:pick',
   readLogo: 'logo:read',
   profilesList: 'profiles:list',

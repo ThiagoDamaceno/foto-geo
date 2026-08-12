@@ -1,14 +1,31 @@
 import {
   CircleCheck,
+  FileDown,
   FolderOpen,
   Layers,
+  Loader2,
   Play,
   Square,
   TriangleAlert,
   X
 } from 'lucide-react'
 import ProgressBar from './ProgressBar'
+import { formatFileSize, formatNumberBr } from '@shared/format'
+import { MAX_OUTPUT_QUALITY, MIN_OUTPUT_QUALITY } from '@shared/output-quality'
 import type { JobProgress, JobResult, OutputNaming } from '@shared/types'
+
+/**
+ * Tamanhos da foto em foco no editor (RF-11): o original e o que a compressão atual
+ * produz. Trocar de foto na lista troca estes números.
+ */
+export interface OutputSizePreview {
+  fileName: string
+  originalBytes: number
+  /** `null` enquanto a medida não chegou. */
+  outputBytes: number | null
+  isEstimating: boolean
+  error: string | null
+}
 
 /**
  * Aplicação em lote (RF-09): pasta de saída, nome dos arquivos, progresso e resumo.
@@ -22,6 +39,8 @@ export default function BatchPanel({
   outputDir,
   naming,
   overwrite,
+  quality,
+  sizePreview,
   isRunning,
   progress,
   result,
@@ -29,6 +48,7 @@ export default function BatchPanel({
   onPickOutputDir,
   onNaming,
   onOverwrite,
+  onQuality,
   onStart,
   onCancel,
   onOpenOutput,
@@ -40,6 +60,10 @@ export default function BatchPanel({
   outputDir: string | null
   naming: OutputNaming
   overwrite: boolean
+  /** Qualidade JPEG da saída — uma só para o lote inteiro (RF-11). */
+  quality: number
+  /** Tamanhos da foto em foco; `null` quando nenhuma está selecionada. */
+  sizePreview: OutputSizePreview | null
   isRunning: boolean
   progress: JobProgress | null
   result: JobResult | null
@@ -47,6 +71,7 @@ export default function BatchPanel({
   onPickOutputDir: () => void
   onNaming: (naming: OutputNaming) => void
   onOverwrite: (overwrite: boolean) => void
+  onQuality: (quality: number) => void
   onStart: () => void
   onCancel: () => void
   onOpenOutput: () => void
@@ -138,6 +163,33 @@ export default function BatchPanel({
         </label>
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <label
+          className="text-[11px] text-slate-500 dark:text-slate-400"
+          htmlFor="batch-quality"
+          title="Qualidade do JPEG gerado pelo Sharp. Menor = arquivo menor e mais perda; 98 fica quase igual ao original."
+        >
+          Compressão
+        </label>
+        <input
+          id="batch-quality"
+          type="range"
+          min={MIN_OUTPUT_QUALITY}
+          max={MAX_OUTPUT_QUALITY}
+          step={1}
+          value={quality}
+          disabled={isRunning}
+          onChange={(event) => onQuality(Number(event.target.value))}
+          title="Vale para todas as fotos do lote"
+          className="h-1.5 w-40 cursor-pointer accent-sky-600 disabled:opacity-40"
+        />
+        <span className="w-16 shrink-0 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+          {quality}% <span className="text-slate-400 dark:text-slate-500">JPEG</span>
+        </span>
+
+        {sizePreview && <SizeHint preview={sizePreview} />}
+      </div>
+
       {isRunning && progress && (
         <div className="space-y-1.5">
           <ProgressBar value={progress.total === 0 ? 0 : progress.processed / progress.total} label="Progresso do lote" />
@@ -165,6 +217,59 @@ export default function BatchPanel({
       {result && !isRunning && <Summary result={result} onOpen={onOpenOutput} onDismiss={onDismiss} />}
     </section>
   )
+}
+
+/**
+ * `IMG_0253.JPG · 24,6 MB → ≈ 18,2 MB (−26%)` para a foto em foco (RF-11).
+ *
+ * O "≈" é honesto: a medida é o render real desta foto, mas fica valendo enquanto o
+ * carimbo é editado — só a próxima troca de foto/compressão remede.
+ */
+function SizeHint({ preview }: { preview: OutputSizePreview }): React.JSX.Element {
+  const { fileName, originalBytes, outputBytes, isEstimating, error } = preview
+
+  return (
+    <span
+      className="ml-auto flex min-w-0 items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400"
+      title={`Tamanho da cópia de ${fileName} com a compressão atual`}
+    >
+      <FileDown className="size-3.5 shrink-0" aria-hidden />
+      <span className="min-w-0 max-w-40 truncate">{fileName}</span>
+      <span className="font-mono">{formatFileSize(originalBytes)}</span>
+      <span aria-hidden>→</span>
+
+      {error ? (
+        <span className="text-amber-700 dark:text-amber-400">medida indisponível</span>
+      ) : isEstimating || outputBytes === null ? (
+        <span className="flex items-center gap-1">
+          <Loader2 className="size-3 animate-spin" aria-hidden />
+          calculando…
+        </span>
+      ) : (
+        <>
+          <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+            ≈ {formatFileSize(outputBytes)}
+          </span>
+          <span className={deltaTone(originalBytes, outputBytes)}>
+            ({formatDelta(originalBytes, outputBytes)})
+          </span>
+        </>
+      )}
+    </span>
+  )
+}
+
+/** `−26%` (menor que o original) ou `+4%` (recompressão que engordou o arquivo). */
+function formatDelta(originalBytes: number, outputBytes: number): string {
+  if (originalBytes <= 0) return '—'
+  const percent = ((outputBytes - originalBytes) / originalBytes) * 100
+  const rounded = Math.abs(percent) < 0.05 ? 0 : percent
+  return `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${formatNumberBr(Math.abs(rounded), 0)}%`
+}
+
+function deltaTone(originalBytes: number, outputBytes: number): string {
+  if (outputBytes > originalBytes) return 'text-amber-700 dark:text-amber-400'
+  return 'text-emerald-700 dark:text-emerald-400'
 }
 
 /** Resumo do lote (RF-09): contagem, o que não saiu e o atalho para a pasta. */

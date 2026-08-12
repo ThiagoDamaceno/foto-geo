@@ -3,6 +3,7 @@ import { access, mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path'
 import pLimitImport from 'p-limit'
 import { formatFieldValue } from '@shared/format'
+import { clampQuality } from '@shared/output-quality'
 import { isDivider } from '@shared/types'
 import type {
   BatchConfig,
@@ -157,7 +158,12 @@ export async function runBatch(
           }
 
           report(basename(item.filePath))
-          const outcome = await processPhoto(item.filePath, item.outputPath, config.template)
+          const outcome = await processPhoto(
+            item.filePath,
+            item.outputPath,
+            config.template,
+            config.quality
+          )
 
           counts.processed += 1
           if (outcome === 'ok') {
@@ -190,7 +196,8 @@ export async function runBatch(
 async function processPhoto(
   filePath: string,
   outputPath: string,
-  template: Template
+  template: Template,
+  quality: number
 ): Promise<'ok' | { reason: string; skipped: boolean }> {
   let photo: PhotoMetadata
   try {
@@ -204,7 +211,7 @@ async function processPhoto(
   }
 
   try {
-    await renderPhotoToFile(photo, template, outputPath)
+    await renderPhotoToFile(photo, template, outputPath, quality)
     return 'ok'
   } catch (cause) {
     return { reason: messageOf(cause), skipped: false }
@@ -246,7 +253,7 @@ function assertOutputIsSafe(outputDir: string, files: string[]): void {
 
 function parseConfig(raw: unknown): BatchConfig {
   if (!raw || typeof raw !== 'object') throw new Error('Configuração de lote inválida')
-  const { photos, outputDir, template, naming, overwrite } = raw as Partial<BatchConfig>
+  const { photos, outputDir, template, naming, overwrite, quality } = raw as Partial<BatchConfig>
 
   if (!Array.isArray(photos) || photos.length === 0) throw new Error('Nenhuma foto no lote')
   if (typeof outputDir !== 'string' || outputDir.trim() === '' || !isAbsolute(outputDir)) {
@@ -261,7 +268,9 @@ function parseConfig(raw: unknown): BatchConfig {
     outputDir: resolve(outputDir),
     template: coerceTemplate(template),
     naming: isNaming(naming) ? naming : 'keep',
-    overwrite: overwrite === true
+    overwrite: overwrite === true,
+    // valor ausente/absurdo cai no padrão — o lote nunca depende do slider ter chegado
+    quality: clampQuality(quality)
   }
 }
 

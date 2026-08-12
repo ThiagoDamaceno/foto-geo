@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Eye, Loader2, Move, Pencil, Timer } from 'lucide-react'
+import { formatFileSize } from '@shared/format'
 import { logoBox, type Box } from '@shared/geometry'
 import { buildOverlaySvg, svgToDataUri } from '@shared/overlay-svg'
 import type { LogoAsset, PhotoMetadata, PreviewImage, RenderedPreview, Template } from '@shared/types'
@@ -26,6 +27,7 @@ export default function EditorCanvas({
   template,
   logoAssets,
   fontDataUrl,
+  quality,
   selectedLogoId,
   onSelectedLogoId,
   onMoveSection,
@@ -39,6 +41,8 @@ export default function EditorCanvas({
   logoAssets: Record<string, LogoAsset>
   /** Roboto embutida — o `<img src=data:svg>` não herda o `@font-face` da página. */
   fontDataUrl?: string
+  /** Compressão da saída (RF-11): "Visualizar" gera o JPEG nesta qualidade. */
+  quality: number
   /** Seleção vinda da lista do inspector (null = nenhuma logo focada lá). */
   selectedLogoId: string | null
   onSelectedLogoId: (id: string | null) => void
@@ -105,12 +109,12 @@ export default function EditorCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo.filePath])
 
-  // mudança no template invalida a visualização já gerada
+  // mudança no template ou na compressão invalida a visualização já gerada
   useEffect(() => {
     viewGen.current += 1
     setRendered(null)
     setMode('edit')
-  }, [template])
+  }, [template, quality])
 
   // lista do inspector → canvas (null do pai não apaga seleção da seção)
   useEffect(() => {
@@ -152,7 +156,7 @@ export default function EditorCanvas({
     setError(null)
     select(null)
     try {
-      const result = await window.fotoGeo.renderPreview(photo, template, 1400)
+      const result = await window.fotoGeo.renderPreview(photo, template, 1400, quality)
       if (gen !== viewGen.current) return
       setRendered(result)
       setMode('view')
@@ -162,7 +166,7 @@ export default function EditorCanvas({
     } finally {
       if (gen === viewGen.current) setIsBusy(false)
     }
-  }, [photo, template, select])
+  }, [photo, template, quality, select])
 
   const showEdit = useCallback((): void => {
     setMode('edit')
@@ -334,9 +338,12 @@ export default function EditorCanvas({
 
         <div className="flex items-center gap-2">
           {mode === 'view' && rendered && (
-            <span className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+            <span
+              className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400"
+              title={`JPEG q${quality} — tamanho exato deste arquivo na saída`}
+            >
               <Timer className="size-3.5" aria-hidden />
-              {rendered.elapsedMs.toFixed(0)} ms
+              {rendered.elapsedMs.toFixed(0)} ms · {formatFileSize(rendered.outputBytes)}
             </span>
           )}
           <button

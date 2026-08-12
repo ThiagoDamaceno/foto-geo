@@ -1,6 +1,6 @@
 {
   "name": "foto-geo",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Editor de carimbo de telemetria para fotos de drone (offline)",
   "main": "./out/main/index.js",
   "author": "BRTK",

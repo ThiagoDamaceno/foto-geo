@@ -149,6 +149,20 @@ export default function HelpButton(): React.JSX.Element {
                 </p>
               </Section>
 
+              <Section title="Compressão">
+                <p>
+                  O slider <strong className="font-medium text-slate-800 dark:text-slate-100">Compressão</strong>{' '}
+                  é a qualidade do JPEG gerado (30% a 100%) e vale para{' '}
+                  <strong className="font-medium text-slate-800 dark:text-slate-100">todas</strong> as
+                  fotos do lote. Padrão <Kbd>98%</Kbd> — quase sem perda.
+                </p>
+                <p className="mt-1.5">
+                  Ao lado aparece o tamanho da foto selecionada: o original e quanto a cópia vai
+                  pesar. Os números mudam ao trocar de foto na lista e alguns segundos depois de
+                  mexer no slider — cada medida carimba a foto inteira em memória.
+                </p>
+              </Section>
+
               <Section title="Offline">
                 <p>Tudo roda no seu computador — sem nuvem e sem envio de fotos.</p>
               </Section>

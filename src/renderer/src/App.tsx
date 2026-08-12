@@ -10,6 +10,7 @@ import HelpButton from './components/HelpButton'
 import ThemeToggle from './components/ThemeToggle'
 import { useTheme } from './lib/theme'
 import { useBatch } from './state/useBatch'
+import { useOutputSize } from './state/useOutputSize'
 import { usePhotos } from './state/usePhotos'
 import { useProfiles } from './state/useProfiles'
 import { useTemplate } from './state/useTemplate'
@@ -94,6 +95,9 @@ export default function App(): React.JSX.Element {
       setSelectedPath(null)
     }
   }, [photos, selectedPath])
+
+  // tamanho da cópia da foto em foco na compressão atual (RF-11)
+  const outputSize = useOutputSize(selected, template, batch.quality, !batch.isRunning)
 
   useEffect(() => {
     void window.fotoGeo
@@ -219,6 +223,7 @@ export default function App(): React.JSX.Element {
                     template={template}
                     logoAssets={logoAssets}
                     fontDataUrl={fontDataUrl}
+                    quality={batch.quality}
                     selectedLogoId={selectedLogoId}
                     onSelectedLogoId={setSelectedLogoId}
                     onMoveSection={moveSection}
@@ -239,6 +244,18 @@ export default function App(): React.JSX.Element {
                   outputDir={batch.outputDir}
                   naming={batch.naming}
                   overwrite={batch.overwrite}
+                  quality={batch.quality}
+                  sizePreview={
+                    selected
+                      ? {
+                          fileName: selected.fileName,
+                          originalBytes: outputSize.estimate?.originalBytes ?? selected.fileSize,
+                          outputBytes: outputSize.estimate?.outputBytes ?? null,
+                          isEstimating: outputSize.isEstimating,
+                          error: outputSize.error
+                        }
+                      : null
+                  }
                   isRunning={batch.isRunning}
                   progress={batch.progress}
                   result={batch.result}
@@ -246,6 +263,7 @@ export default function App(): React.JSX.Element {
                   onPickOutputDir={() => void batch.pickOutputDir()}
                   onNaming={batch.setNaming}
                   onOverwrite={batch.setOverwrite}
+                  onQuality={batch.setQuality}
                   onStart={() => void batch.start(photos.map((photo) => photo.filePath))}
                   onCancel={() => void batch.cancel()}
                   onOpenOutput={() => void batch.openOutput()}

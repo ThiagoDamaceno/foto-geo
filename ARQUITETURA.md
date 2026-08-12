@@ -93,13 +93,14 @@ foto-geo/
 │   │   │   ├── InspectorPanel.tsx      # largura, fonte, espaçamentos, cores, logo
 │   │   │   ├── FieldList.tsx           # campos: reordenar (dnd-kit) e ligar/desligar
 │   │   │   ├── ProfileBar.tsx          # escolher/salvar/duplicar/excluir perfil (RF-07)
-│   │   │   ├── BatchPanel.tsx          # pasta de saída, naming, progresso e resumo (RF-09)
+│   │   │   ├── BatchPanel.tsx          # pasta de saída, naming, compressão, progresso e resumo (RF-09/RF-11)
 │   │   │   ├── ProgressBar.tsx         # barra do lote
 │   │   │   └── ThemeToggle.tsx          # alterna claro ⇄ escuro (RNF-09)
 │   │   ├── state/
 │   │   │   ├── usePhotos.ts            # lote importado
 │   │   │   ├── useProfiles.ts          # perfis salvos + "alterações não salvas"
-│   │   │   ├── useBatch.ts             # pasta de saída + progresso/resumo do lote
+│   │   │   ├── useBatch.ts             # pasta de saída + compressão + progresso/resumo do lote
+│   │   │   ├── useOutputSize.ts        # mede a cópia da foto em foco (debounce + cache — RF-11)
 │   │   │   └── useTemplate.ts          # template em edição + logo carregada
 │   │   ├── lib/theme.ts                # tema: data-theme no <html> + localStorage
 │   │   ├── lib/ipc-error.ts            # mensagem de erro IPC sem derrubar a UI
@@ -113,6 +114,7 @@ foto-geo/
 │       ├── geometry.ts                 # coords relativas <-> px (§7) — os DOIS lados
 │       ├── overlay-svg.ts              # gera o SVG do carimbo — os DOIS lados (§9)
 │       ├── image-formats.ts            # extensões aceitas no import (RF-01)
+│       ├── output-quality.ts           # faixa/padrão da compressão + opções do encoder (RF-11)
 │       └── template-defaults.ts        # perfil padrão
 ├── assets/fonts/roboto.ttf             # fonte embarcada (offline)
 └── build/                              # ícones do app, config builder (só na fase de empacotamento — §12)
@@ -215,7 +217,11 @@ export type OutputNaming = 'keep' | 'suffix'   // §9.2: manter nome · ou acres
 export interface BatchConfig {
   photos: string[]; outputDir: string; template: Template;
   naming: OutputNaming; overwrite: boolean;    // overwrite=false → ignora se já existe
+  quality: number;                             // RF-11: qualidade JPEG 30..100, uma p/ o lote todo
 }
+// RF-11 — medida (não palpite) do arquivo que a foto vai gerar na qualidade escolhida
+export interface OutputSizeEstimate { filePath: string; quality: number;
+  originalBytes: number; outputBytes: number; elapsedMs: number; }
 export interface JobProgress { total: number; processed: number; currentFile: string;
   succeeded: number; skipped: number; failed: number; }
 export interface BatchIssue { file: string; reason: string; skipped: boolean; }
@@ -234,7 +240,8 @@ export interface JobResult  { total: number; succeeded: number; skipped: number;
 | `dialog:pickImages` / `dialog:pickFolder` | R→M invoke | ✅ Selecionar imagens/pasta (pasta devolve as imagens de dentro, até 4 níveis). |
 | `photos:scan` | R→M invoke | ✅ Recebe arquivos e/ou pastas, valida os caminhos e devolve `ScanResult` (`PhotoMetadata[]` com `present` + `ignored[]`). |
 | `photos:preview` | R→M invoke | ✅ Foto reduzida (data URL) para o fundo do editor — o original tem ~36 MP. |
-| `preview:render` | R→M invoke | ✅ Carimba 1 foto em tamanho real com o Sharp e devolve reduzida + tempo, para conferir a fidelidade. |
+| `preview:render` | R→M invoke | ✅ Carimba 1 foto em tamanho real com o Sharp **na qualidade escolhida** e devolve reduzida + tempo + bytes do arquivo, para conferir a fidelidade. |
+| `output:estimate` | R→M invoke | ✅ Mede o tamanho da cópia desta foto na qualidade atual (RF-11) — mesmo pipeline do lote, sem gravar. Caro: o Renderer chama com debounce. |
 | `profiles:list` / `profiles:load` / `profiles:save` / `profiles:duplicate` / `profiles:delete` | R→M invoke | ✅ CRUD de perfis `.json` (§8). `load` devolve o template validado, a logo já em PNG e os avisos; `save` com `id` nulo cria arquivo novo. |
 | `logo:pick` | R→M invoke | ✅ Selecionar uma ou mais logos → `LogoAsset[]` (PNG + proporção). |
 | `logo:read` | R→M invoke | ✅ Recarregar uma logo já referenciada por um perfil (cache por mtime). |
@@ -420,10 +427,20 @@ foto + Template
    │                      — mesmas funções que o preview usa (RNF-05)
    ▼ overlay-svg       → monta 1 SVG do tamanho REAL da foto:
    │                      seção (fundo, campos ordenados, ícones) + logo
-   ▼ sharp             → carrega foto (auto-rotate EXIF),
-   │                      composite([{svg}], ...), grava CÓPIA na saída
+   ▼ sharp             → carrega foto (auto-rotate EXIF), composite([{svg}], ...),
+   │                      jpeg(qualidade do slider) + keepMetadata → CÓPIA na saída
    ▼ batch.service     → emite progress; erro num arquivo não aborta o lote
 ```
+
+**Um pipeline só** (`outputPipeline` no `render.service`) para os três consumidores — arquivo
+do lote, `preview:render` e `output:estimate`. É o que garante que o tamanho mostrado na tela
+seja o do arquivo gravado: `toBuffer().byteLength === stat(arquivo).size`.
+
+**Compressão (RF-11)** — `shared/output-quality.ts`, valor **global** (não é do `Template`,
+logo não vai para o perfil): faixa 30–100, padrão **98**. `chromaSubsampling` é derivado —
+`4:4:4` de 90 para cima (fidelidade), `4:2:0` abaixo (é o que faz o arquivo realmente cair).
+Renders interativos (preview e estimativa) passam por uma **fila de 1** no Main: arrastar o
+slider não pode empilhar composições de 36 MP (~150 MB cada).
 
 Concorrência: `p-limit(min(núcleos − 1, 4))` — o teto **4** existe porque cada composição de
 36 MP mantém ~150 MB em memória; acima disso o ganho some e o risco de OOM sobe (RNF-06).
@@ -439,11 +456,14 @@ A saída sai com `keepMetadata()`, então a cópia continua com EXIF/GPS. Nome d
 | composite + JPEG q92 → arquivo | ~1,1 s (9,8 MB) |
 | idem com `mozjpeg` | ~4,9 s (8,2 MB) → **descartado**, 4× mais lento por 15% de arquivo |
 | `preview:render` (compõe real + reduz p/ 1400 px) | ~1,8 s |
+| `output:estimate` (mesmo render, só para medir os bytes) | ≈ o do arquivo — daí o debounce de 500 ms e o cache por foto+qualidade |
 
 ⚠️ **Ordem das operações no Sharp:** `resize` é aplicado **antes** de `composite`,
 independentemente da ordem das chamadas. Compor e reduzir no mesmo pipeline dá
 `Image to composite must have same dimensions or smaller` — o `renderPreview` compõe em tamanho
-real, extrai `raw()` e reduz num **segundo** `sharp()`.
+real, gera o **JPEG de saída** e reduz esse buffer num **segundo** `sharp()`. Passar pelo JPEG
+(em vez do `raw()` de antes) custa um encode+decode a mais, e em troca o que aparece na tela
+tem a perda real da compressão escolhida e os bytes exatos do arquivo.
 
 ---
 
@@ -554,6 +574,9 @@ Complementa a tabela de riscos (§13); aqui o foco é operacional.
   **ignorada** no lote (não vira recompressão muda).
 - **Nome de saída (§9.2):** padrão `keep` (mesmo nome, outra pasta); opção `suffix` → `_geo`.
   Extensão **sempre `.jpg`** — entrada PNG/BMP também sai JPEG.
+- **Compressão é global (RF-11), não é do perfil:** vive no `useBatch`, vai no `BatchConfig` e
+  **não** entra no `Template` — perfil descreve o carimbo, não o encoder. O número ao lado do
+  slider é medido com um render inteiro: qualquer novo gatilho para ele precisa de debounce.
 - **Perfis = arquivo, não rótulo:** o `id` é o nome do `.json`; renomear e salvar **não** cria
   outro. “Salvar como novo” / “Duplicar” existem para isso. Gravação em `.tmp` + rename.
 - **Logo por caminho:** N perfis = N logos. Logo ausente (drive desconectado) vira **aviso**,

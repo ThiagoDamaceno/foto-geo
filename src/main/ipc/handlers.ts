@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { IPC } from '@shared/ipc-channels'
+import { clampQuality } from '@shared/output-quality'
 import type { AppInfo, ScanResult } from '@shared/types'
 import type { PhotoMetadata, Template } from '@shared/types'
 import { openFolder, pickFolder, pickImages, pickLogo, pickOutputDir } from '../services/dialog.service'
@@ -8,7 +9,7 @@ import { loadLogoAsset } from '../services/logo.service'
 import { collectImagePaths } from '../services/files.service'
 import { scanPhotos } from '../services/exif.service'
 import { loadRobotoDataUrl } from '../services/font.service'
-import { getPreviewImage, renderPreview } from '../services/render.service'
+import { estimateOutputSize, getPreviewImage, renderPreview } from '../services/render.service'
 import {
   deleteProfile,
   duplicateProfile,
@@ -51,9 +52,17 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     IPC.renderPreview,
-    async (_event, photo: PhotoMetadata, template: Template, maxWidth: number) => {
+    async (_event, photo: PhotoMetadata, template: Template, maxWidth: number, quality: unknown) => {
       await assertImportedFile(photo.filePath)
-      return renderPreview(photo, template, clampWidth(maxWidth))
+      return renderPreview(photo, template, clampWidth(maxWidth), clampQuality(quality))
+    }
+  )
+
+  ipcMain.handle(
+    IPC.outputEstimate,
+    async (_event, photo: PhotoMetadata, template: Template, quality: unknown) => {
+      await assertImportedFile(photo.filePath)
+      return estimateOutputSize(photo, template, clampQuality(quality))
     }
   )
 

@@ -7,6 +7,7 @@ import type {
   JobProgress,
   JobResult,
   LogoAsset,
+  OutputSizeEstimate,
   PreviewImage,
   ProfileFile,
   ProfileSummary,
@@ -23,8 +24,21 @@ const api: FotoGeoApi = {
   scanPhotos: (paths) => ipcRenderer.invoke(IPC.scanPhotos, paths) as Promise<ScanResult>,
   getPreviewImage: (filePath, maxWidth) =>
     ipcRenderer.invoke(IPC.previewImage, filePath, maxWidth) as Promise<PreviewImage>,
-  renderPreview: (photo, template, maxWidth) =>
-    ipcRenderer.invoke(IPC.renderPreview, photo, template, maxWidth) as Promise<RenderedPreview>,
+  renderPreview: (photo, template, maxWidth, quality) =>
+    ipcRenderer.invoke(
+      IPC.renderPreview,
+      photo,
+      template,
+      maxWidth,
+      quality
+    ) as Promise<RenderedPreview>,
+  estimateOutputSize: (photo, template, quality) =>
+    ipcRenderer.invoke(
+      IPC.outputEstimate,
+      photo,
+      template,
+      quality
+    ) as Promise<OutputSizeEstimate>,
   pickLogo: () => ipcRenderer.invoke(IPC.pickLogo) as Promise<LogoAsset[]>,
   readLogo: (filePath) => ipcRenderer.invoke(IPC.readLogo, filePath) as Promise<LogoAsset>,
   listProfiles: () => ipcRenderer.invoke(IPC.profilesList) as Promise<ProfileSummary[]>,

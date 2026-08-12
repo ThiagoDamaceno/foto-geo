@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { clampQuality, DEFAULT_OUTPUT_QUALITY } from '@shared/output-quality'
 import type { JobProgress, JobResult, OutputNaming, Template } from '@shared/types'
 import { messageOf } from '../lib/ipc-error'
 
@@ -7,6 +8,8 @@ export interface BatchState {
   outputDir: string | null
   naming: OutputNaming
   overwrite: boolean
+  /** Qualidade JPEG da saída (RF-11) — global, vale para todas as fotos. */
+  quality: number
   isRunning: boolean
   /** Andamento vindo do Main (`batch:progress`). */
   progress: JobProgress | null
@@ -15,6 +18,7 @@ export interface BatchState {
   error: string | null
   setNaming: (naming: OutputNaming) => void
   setOverwrite: (overwrite: boolean) => void
+  setQuality: (quality: number) => void
   pickOutputDir: () => Promise<void>
   start: (filePaths: string[]) => Promise<void>
   cancel: () => Promise<void>
@@ -33,6 +37,7 @@ export function useBatch(template: Template): BatchState {
   const [outputDir, setOutputDir] = useState<string | null>(null)
   const [naming, setNaming] = useState<OutputNaming>('keep')
   const [overwrite, setOverwrite] = useState(false)
+  const [quality, setQualityState] = useState(DEFAULT_OUTPUT_QUALITY)
   const [isRunning, setIsRunning] = useState(false)
   const [progress, setProgress] = useState<JobProgress | null>(null)
   const [result, setResult] = useState<JobResult | null>(null)
@@ -56,6 +61,11 @@ export function useBatch(template: Template): BatchState {
     }
   }, [])
 
+  /** O clamp mora aqui e no Main: o slider pode vir de teclado/roda e passar do limite. */
+  const setQuality = useCallback((next: number): void => {
+    setQualityState(clampQuality(next))
+  }, [])
+
   const start = useCallback(
     async (filePaths: string[]): Promise<void> => {
       if (!outputDir || filePaths.length === 0) return
@@ -71,7 +81,8 @@ export function useBatch(template: Template): BatchState {
             outputDir,
             template,
             naming,
-            overwrite
+            overwrite,
+            quality
           })
         )
       } catch (cause) {
@@ -81,7 +92,7 @@ export function useBatch(template: Template): BatchState {
         setProgress(null)
       }
     },
-    [naming, outputDir, overwrite, template]
+    [naming, outputDir, overwrite, quality, template]
   )
 
   const cancel = useCallback(async (): Promise<void> => {
@@ -112,12 +123,14 @@ export function useBatch(template: Template): BatchState {
     outputDir,
     naming,
     overwrite,
+    quality,
     isRunning,
     progress,
     result,
     error,
     setNaming,
     setOverwrite,
+    setQuality,
     pickOutputDir,
     start,
     cancel,

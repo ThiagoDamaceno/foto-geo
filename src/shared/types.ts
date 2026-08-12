@@ -176,6 +176,8 @@ export interface BatchConfig {
   naming: OutputNaming
   /** `false`: arquivo já existente na saída é ignorado em vez de sobrescrito. */
   overwrite: boolean
+  /** Qualidade JPEG 30..100 (RF-11) — global: vale para todas as fotos do lote. */
+  quality: number
 }
 
 /** Andamento do lote (canal `batch:progress`). */
@@ -244,6 +246,23 @@ export interface PreviewImage {
 export interface RenderedPreview extends PreviewImage {
   /** Tempo do render em tamanho real, em ms (referência para o lote — RNF-06). */
   elapsedMs: number
+  /** Bytes do JPEG em tamanho real — é o arquivo que o lote gravaria desta foto. */
+  outputBytes: number
+}
+
+/**
+ * Tamanho do arquivo que esta foto vai gerar na qualidade escolhida (RF-11).
+ * Não é palpite: vem do mesmo pipeline do lote, só que em memória.
+ */
+export interface OutputSizeEstimate {
+  filePath: string
+  /** Qualidade usada na medida — a tela descarta resultado de qualidade já trocada. */
+  quality: number
+  /** Bytes do arquivo original. */
+  originalBytes: number
+  /** Bytes da cópia carimbada. */
+  outputBytes: number
+  elapsedMs: number
 }
 
 /** API exposta pelo preload em `window.fotoGeo` (ARQUITETURA.md §5). */
@@ -267,8 +286,18 @@ export interface FotoGeoApi {
   renderPreview: (
     photo: PhotoMetadata,
     template: Template,
-    maxWidth: number
+    maxWidth: number,
+    quality: number
   ) => Promise<RenderedPreview>
+  /**
+   * Mede o arquivo que sairia desta foto na qualidade informada (RF-11) — mesmo pipeline
+   * do lote, sem gravar nada. É um render inteiro: chamar com parcimônia (debounce).
+   */
+  estimateOutputSize: (
+    photo: PhotoMetadata,
+    template: Template,
+    quality: number
+  ) => Promise<OutputSizeEstimate>
   /** Perfis salvos, do mais recente para o mais antigo. */
   listProfiles: () => Promise<ProfileSummary[]>
   loadProfile: (id: string) => Promise<ProfileFile>

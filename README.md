@@ -134,7 +134,8 @@ src/
 │       ├── components/         # ImportDropzone, MetadataList, EditorCanvas,
 │       │                       # InspectorPanel, FieldList, ProfileBar, BatchPanel,
 │       │                       # ProgressBar, ThemeToggle
-│       ├── state/              # usePhotos, useTemplate, useProfiles, useBatch
+│       ├── state/              # usePhotos, useTemplate, useProfiles, useBatch,
+│       │                       # useOutputSize (tamanho da cópia da foto em foco)
 │       └── lib/                # theme, ipc-error, ícones da UI e do carimbo
 └── shared/                     # tipos, IPC, geometria, overlay-svg, formatação (os dois lados)
 assets/fonts/                   # roboto.ttf (embarcada, offline)
@@ -158,6 +159,10 @@ assets/fonts/                   # roboto.ttf (embarcada, offline)
 6. **Aplicar em lote**: escolher pasta de saída (diferente da dos originais), manter o nome ou
    acrescentar `_geo`, processar as N fotos com barra de progresso, cancelar no meio e ver o
    resumo (sucesso / ignoradas / erro) com atalho para abrir a pasta.
+7. **Ajustar a compressão** com um slider único para o lote (qualidade JPEG 30–100%, padrão
+   98%). Ao lado dele, a foto selecionada mostra o tamanho original e quanto a cópia vai
+   pesar — trocar de foto troca os números. O valor é medido com o carimbo de verdade, não
+   estimado, então aparece alguns segundos depois de mexer no slider.
 
 O preview **não é um desenho parecido** com a saída: é o mesmo SVG que o Sharp compõe no
 arquivo final (`src/shared/overlay-svg.ts`), só escalado. Fonte, ícones (Lucide), posições e

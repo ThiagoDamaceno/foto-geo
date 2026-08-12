@@ -122,6 +122,18 @@ Ajustáveis pelo usuário:
 ### ✅ RF-10 — Preservação do original
 - Nunca alterar o arquivo de entrada; sempre gerar cópia.
 
+### ✅ RF-11 — Compressão da saída
+- **Um slider global** de qualidade JPEG (30% a 100%, padrão **98%**) no painel de lote: vale
+  para **todas** as fotos — não existe ajuste por foto.
+- É a qualidade que o Sharp usa ao gravar a cópia (o `chromaSubsampling` acompanha: croma
+  cheio de 90 para cima, `4:2:0` abaixo, que é onde o arquivo realmente encolhe).
+- Ao lado do slider, para a **foto selecionada** no editor: **tamanho original** e **tamanho
+  final** em MB, com a variação em %. Trocar de foto na lista troca os números.
+- O tamanho final é **medido** (o mesmo carimbo do lote, em memória), não estimado por regra
+  de três — em JPEG uma proporção sobre a resolução erraria muito. Custa um render por
+  medida, então acontece com atraso (~0,5 s parado) e fica em cache por foto+qualidade.
+- "Visualizar" no editor gera o JPEG **nessa** qualidade e mostra o tamanho exato do arquivo.
+
 ---
 
 ## 5. Requisitos não funcionais
@@ -151,8 +163,10 @@ Ajustáveis pelo usuário:
      • logo: importar PNG/SVG e arrastar livre
 3. Ver preview ao vivo sobre uma foto real
 4. Salvar perfil (.json — em %APPDATA%\foto-geo\profiles)
-5. [PROCESSAR] → aplica a todas as fotos → pasta de saída
-6. Resumo + abrir pasta
+5. Escolher a COMPRESSÃO (uma para o lote) → o painel mostra, da foto selecionada,
+     o tamanho original e quanto a cópia vai pesar
+6. [PROCESSAR] → aplica a todas as fotos → pasta de saída
+7. Resumo + abrir pasta
 ```
 
 ---
@@ -160,6 +174,8 @@ Ajustáveis pelo usuário:
 ## 7. Modelo de configuração (resumo — detalhe em ARQUITETURA §8)
 
 Tudo salvo em **JSON** com valores **relativos** (0–1) para posição/tamanho, mais a **ordem** dos campos e referência ao arquivo de logo. N perfis = N arquivos `.json` em `%APPDATA%\foto-geo\profiles`.
+
+A **compressão (RF-11) não entra no perfil**: o perfil descreve o carimbo, não o encoder. Ela é uma escolha da sessão de trabalho, ao lado da pasta de saída e do nome dos arquivos.
 
 ---
 
@@ -183,6 +199,8 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
 1. **Altitude a exibir:** implementado como **absoluta** (`AbsoluteAltitude`/`GPSAltitude`), caindo na **relativa** quando a absoluta falta. Confirmar se a relativa deve virar opção no inspector ou aparecer junto.
 2. ~~**Nome dos arquivos de saída**~~ — **resolvido:** padrão = **manter o nome original** na pasta de saída; opção no painel = sufixo `_geo`. Saída sempre `.jpg` (encoder do Sharp).
 3. **Marca/logo oficial** (ENDEGRO vs Quartz) — só afeta o exemplo/branding, não a mecânica.
+4. **Compressão por perfil?** Hoje é global e some ao fechar o app (RF-11). Se virar uma
+   escolha por cliente/obra, o lugar é o `Template` — e aí perfis antigos precisam de padrão.
 
 **Resolvidas:** perfis em **JSON**; posição da seção e da logo **livres**; ícones = **Lucide, fixos por campo**; fonte = **Roboto**; **formato principal = JPG DJI** (EXIF+XMP presentes); **GPS lido do XMP `drone-dji` (decimal)** com fallback EXIF; **modelo = `ProductName`**; **tamanho da fonte é relativo** (`fontPct` = fração da largura da imagem — escala junto, RNF-04); **campo sem valor não entra no carimbo** (a caixa encolhe); **nome de saída = manter original** (com opção `_geo`). Fotos PNG/BMP sem GPS deixam de ser o caso central (secundário — a definir tratamento).
 
@@ -196,6 +214,7 @@ Pasta `drone/` = **13 fotos** JPG do **DJI Lito X1** (`FC9589`), usadas como ref
   *(fonte Roboto em `assets/fonts/roboto.ttf`)*
 - ✅ Logo importada (PNG/SVG) com posicionamento livre.
 - ✅ Preview fiel + preservar originais + **aplicação em lote** (progresso, cancelar, resumo).
+- ✅ Compressão da saída ajustável (global) com o tamanho da cópia por foto (RF-11).
 - ✅ Perfis em **JSON** (salvar/carregar/duplicar/excluir, cada um com sua logo).
 - ⬜ Build `.exe` Windows offline.
 
